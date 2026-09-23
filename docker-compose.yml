@@ -1,0 +1,49 @@
+name: finanzauto
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: finanzauto
+      POSTGRES_USER: finanzauto
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finanzauto -d finanzauto"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+  api:
+    build:
+      context: .
+      dockerfile: Finanzauto/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__Finanzauto: "Host=db;Port=5432;Database=finanzauto;Username=finanzauto;Password=${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD in .env}"
+      Database__ApplyMigrations: "true"
+      Jwt__SigningKey: "${JWT_SIGNING_KEY:?Configure JWT_SIGNING_KEY in .env}"
+      Jwt__Issuer: "Finanzauto.Api"
+      Jwt__Audience: "Finanzauto.Client"
+      BootstrapAdmin__Email: "${BOOTSTRAP_ADMIN_EMAIL:-}"
+      BootstrapAdmin__Password: "${BOOTSTRAP_ADMIN_PASSWORD:-}"
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+  front:
+    build:
+      context: "${FRONT_CONTEXT:-../Front}"
+      dockerfile: Dockerfile
+    environment:
+      API_UPSTREAM: "api:8080"
+    ports:
+      - "127.0.0.1:5174:80"
+    depends_on:
+      api:
+        condition: service_started
+volumes:
+  postgres_data:

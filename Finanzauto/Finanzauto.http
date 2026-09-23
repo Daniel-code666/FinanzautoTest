@@ -1,0 +1,178 @@
+@Finanzauto_HostAddress = http://localhost:8080
+
+GET {{Finanzauto_HostAddress}}/health
+Accept: application/json
+
+###
+@adminToken = paste-admin-token-here
+@userToken = paste-user-token-here
+
+POST {{Finanzauto_HostAddress}}/Login
+Content-Type: application/json
+
+{
+  "email": "admin@finanzauto.local",
+  "password": "copy-BOOTSTRAP_ADMIN_PASSWORD-from-env"
+}
+
+###
+POST {{Finanzauto_HostAddress}}/UserAdministration/Register
+Content-Type: application/json
+
+{
+  "firstName": "Ana",
+  "lastName": "Perez",
+  "email": "ana@example.com",
+  "password": "EjemploLocal2026!"
+}
+
+###
+GET {{Finanzauto_HostAddress}}/UserAdministration/Users?page=1&pageSize=20&search=ana
+Authorization: Bearer {{adminToken}}
+
+###
+GET {{Finanzauto_HostAddress}}/UserAdministration/Roles?page=1&pageSize=20
+Authorization: Bearer {{adminToken}}
+
+###
+POST {{Finanzauto_HostAddress}}/UserAdministration/Roles
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Operador"
+}
+
+###
+POST {{Finanzauto_HostAddress}}/Category
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "categoryName": "SERVIDORES",
+  "description": "Infraestructura de servidores",
+  "picture": null
+}
+
+###
+POST {{Finanzauto_HostAddress}}/Category
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "categoryName": "CLOUD",
+  "description": "Servicios cloud"
+}
+
+###
+GET {{Finanzauto_HostAddress}}/Suppliers?page=1&pageSize=20
+Authorization: Bearer {{adminToken}}
+
+###
+GET {{Finanzauto_HostAddress}}/Categories?page=1&pageSize=20
+Authorization: Bearer {{adminToken}}
+
+###
+POST {{Finanzauto_HostAddress}}/Products
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "productName": "Servidor manual",
+  "categoryId": 1,
+  "supplierId": 1,
+  "unitPrice": 1500.50,
+  "unitsInStock": 10
+}
+
+###
+POST {{Finanzauto_HostAddress}}/Product
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "count": 100000,
+  "categoryIds": [1, 2],
+  "supplierId": 1,
+  "namePrefix": "Producto",
+  "minPrice": 1,
+  "maxPrice": 10000
+}
+
+###
+GET {{Finanzauto_HostAddress}}/Products?page=1&pageSize=25&sortBy=Price&descending=true
+Authorization: Bearer {{adminToken}}
+
+###
+GET {{Finanzauto_HostAddress}}/Products/2
+Authorization: Bearer {{adminToken}}
+
+###
+POST {{Finanzauto_HostAddress}}/Suppliers/Bulk
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+[
+  { "companyName": "Proveedor A", "city": "Bogota", "country": "Colombia" },
+  { "companyName": "Proveedor B", "city": "Medellin", "country": "Colombia" }
+]
+
+###
+GET {{Finanzauto_HostAddress}}/Suppliers?search=Proveedor&country=Colombia&page=1&pageSize=20
+Authorization: Bearer {{adminToken}}
+
+###
+POST {{Finanzauto_HostAddress}}/Customers/Bulk
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+[
+  { "customerId": "CLI01", "companyName": "Cliente A", "city": "Bogota" },
+  { "customerId": "CLI02", "companyName": "Cliente B", "city": "Cali" }
+]
+
+###
+GET {{Finanzauto_HostAddress}}/Customers?page=1&pageSize=20&search=Cliente
+Authorization: Bearer {{adminToken}}
+
+###
+GET {{Finanzauto_HostAddress}}/Customers/CLI01
+Authorization: Bearer {{adminToken}}
+
+###
+PUT {{Finanzauto_HostAddress}}/Customers/CLI01
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "companyName": "Cliente A actualizado",
+  "city": "Bogota",
+  "country": "Colombia"
+}
+
+###
+GET {{Finanzauto_HostAddress}}/Profile
+Authorization: Bearer {{userToken}}
+
+###
+PUT {{Finanzauto_HostAddress}}/Profile
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{
+  "firstName": "Ana",
+  "lastName": "Perez",
+  "email": "ana@example.com",
+  "city": "Bogota",
+  "country": "Colombia"
+}
+
+###
+PUT {{Finanzauto_HostAddress}}/Profile/Password
+Authorization: Bearer {{userToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "EjemploLocal2026!",
+  "newPassword": "NuevaClavePersonal2026!"
+}
