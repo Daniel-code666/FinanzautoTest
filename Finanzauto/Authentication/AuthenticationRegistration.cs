@@ -10,9 +10,8 @@ public static class AuthenticationRegistration
     public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
         var settings = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new();
-        if (Encoding.UTF8.GetByteCount(settings.SigningKey) < 32 ||
-            string.IsNullOrWhiteSpace(settings.Issuer) || string.IsNullOrWhiteSpace(settings.Audience) ||
-            settings.ExpirationMinutes is < 1 or > 1440)
+        if (Encoding.UTF8.GetByteCount(settings.SigningKey) < 32 || string.IsNullOrWhiteSpace(settings.Issuer) 
+            || string.IsNullOrWhiteSpace(settings.Audience) || settings.ExpirationMinutes is < 1 or > 1440)
             throw new InvalidOperationException("Configure Jwt:SigningKey (mínimo 32 bytes), Issuer, Audience y ExpirationMinutes (1-1440).");
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));

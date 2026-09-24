@@ -23,7 +23,8 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         b.HasIndex(x => new { x.Active, x.UnitPrice, x.ProductId });
         b.HasOne(x => x.Category).WithMany(x => x.Products).HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.Cascade);
         b.HasOne(x => x.Supplier).WithMany(x => x.Products).HasForeignKey(x => x.SupplierId).OnDelete(DeleteBehavior.Cascade);
-        b.ToTable(t => {
+        b.ToTable(t =>
+        {
             t.HasCheckConstraint("CK_Products_UnitPrice", "\"UnitPrice\" >= 0");
             t.HasCheckConstraint("CK_Products_Stock", "\"UnitsInStock\" >= 0 AND \"UnitsOnOrder\" >= 0 AND \"ReorderLevel\" >= 0");
         });

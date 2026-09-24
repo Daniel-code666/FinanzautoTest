@@ -551,6 +551,30 @@ cumple la longitud de 12-128 caracteres. No existe recuperación pública sin JW
 El restablecimiento de otros usuarios sigue en Users/ResetPassword, exclusivo
 de Admin. Como no hay SecurityStamp, el cambio no revoca JWT ya emitidos.
 
+## Integración continua
+
+El workflow `.github/workflows/ci.yml` se ejecuta con pushes a `main`, pull requests
+hacia `main` y manualmente desde GitHub Actions. El job `build` instala .NET 10,
+restaura dependencias, compila la solución en Release, verifica el formato y
+construye la imagen `finanzauto-api:ci`. Cualquier fallo detiene el job.
+
+`global.json` limita el SDK a versiones estables de .NET 10. Las acciones se
+configuran siguiendo la [documentación de setup-dotnet](https://github.com/actions/setup-dotnet).
+
+Para reproducir las verificaciones desde la raíz:
+
+```powershell
+dotnet restore Finanzauto.slnx
+dotnet build Finanzauto.slnx --configuration Release --no-restore
+dotnet format Finanzauto.slnx --verify-no-changes --no-restore
+docker build --file Finanzauto/Dockerfile --tag finanzauto-api:ci .
+```
+
+Si falla el formato, ejecutar `dotnet format Finanzauto.slnx --no-restore` y revisar
+los cambios antes de subirlos. Esta etapa no requiere secrets ni publica o
+despliega la imagen. Quedan pendientes la verificación temporal de API y base de
+datos con GitHub Secrets y la ejecución de pruebas cuando se agreguen sus proyectos.
+
 ## Compose unificado: front, API y PostgreSQL
 
 El Compose de esta carpeta agrupa los servicios `front`, `api` y `db` bajo el proyecto `finanzauto`. Cada servicio conserva su imagen y contenedor. La red interna es `finanzauto_default` y el volumen existente sigue siendo `finanzauto_postgres_data`.

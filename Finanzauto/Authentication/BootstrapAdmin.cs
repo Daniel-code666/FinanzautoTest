@@ -24,8 +24,11 @@ public static class BootstrapAdmin
         }
         var request = new CreateUserRequest
         {
-            Email = email, Password = password, FirstName = "Administrador",
-            LastName = "Inicial", RoleId = UserAdministrationService.AdminRoleId
+            Email = email,
+            Password = password,
+            FirstName = "Administrador",
+            LastName = "Inicial",
+            RoleId = UserAdministrationService.AdminRoleId
         };
         Validator.ValidateObject(request, new ValidationContext(request), validateAllProperties: true);
         await scope.ServiceProvider.GetRequiredService<IUserAdministrationService>()

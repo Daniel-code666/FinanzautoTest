@@ -75,7 +75,7 @@ public sealed class IdentityStore(FinanzautoDbContext db) : IIdentityStore
     {
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-            { SqlState: PostgresErrorCodes.UniqueViolation })
+        { SqlState: PostgresErrorCodes.UniqueViolation })
         {
             throw new IdentityException(409, "Ya existe un registro con ese correo o nombre de rol.");
         }

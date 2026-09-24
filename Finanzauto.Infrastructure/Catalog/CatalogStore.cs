@@ -70,9 +70,15 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
             product.ProductId = id.Value;
             db.Entry(existing).CurrentValues.SetValues(new
             {
-                product.ProductName, product.CategoryId, product.SupplierId, product.QuantityPerUnit,
-                product.UnitPrice, product.UnitsInStock, product.UnitsOnOrder,
-                product.ReorderLevel, product.Discontinued
+                product.ProductName,
+                product.CategoryId,
+                product.SupplierId,
+                product.QuantityPerUnit,
+                product.UnitPrice,
+                product.UnitsInStock,
+                product.UnitsOnOrder,
+                product.ReorderLevel,
+                product.Discontinued
             });
         }
         else db.Products.Add(product);
@@ -123,7 +129,10 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
             category.CategoryId = id.Value;
             db.Entry(existing).CurrentValues.SetValues(new
             {
-                category.CategoryName, category.Description, category.Picture, category.PictureContentType
+                category.CategoryName,
+                category.Description,
+                category.Picture,
+                category.PictureContentType
             });
         }
         else db.Categories.Add(category);
@@ -169,12 +178,12 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
     {
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-            { SqlState: PostgresErrorCodes.UniqueViolation })
+        { SqlState: PostgresErrorCodes.UniqueViolation })
         {
             throw new ApiException(409, "Ya existe un registro con ese nombre.");
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-            { SqlState: PostgresErrorCodes.ForeignKeyViolation })
+        { SqlState: PostgresErrorCodes.ForeignKeyViolation })
         {
             throw new ApiException(409, "Una referencia ya no existe. Actualiza los datos e intenta nuevamente.");
         }

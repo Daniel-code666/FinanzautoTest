@@ -16,7 +16,8 @@ public sealed class OrderDetailConfiguration : IEntityTypeConfiguration<OrderDet
         b.Property(x => x.Discount).HasPrecision(5, 4);
         b.HasOne(x => x.Order).WithMany(x => x.OrderDetails).HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
         b.HasOne(x => x.Product).WithMany(x => x.OrderDetails).HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Cascade);
-        b.ToTable(t => {
+        b.ToTable(t =>
+        {
             t.HasCheckConstraint("CK_OrderDetails_UnitPrice", "\"UnitPrice\" >= 0");
             t.HasCheckConstraint("CK_OrderDetails_Quantity", "\"Quantity\" > 0");
             t.HasCheckConstraint("CK_OrderDetails_Discount", "\"Discount\" >= 0 AND \"Discount\" <= 1");

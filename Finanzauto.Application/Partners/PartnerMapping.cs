@@ -20,7 +20,8 @@ public static class PartnerMapping
             Phone = x.Phone,
             Fax = x.Fax,
             HomePage = x.HomePage,
-            CreationDate = x.CreationDate, UpdatedDate = x.UpdatedDate
+            CreationDate = x.CreationDate,
+            UpdatedDate = x.UpdatedDate
         };
     private static readonly Func<Supplier, SupplierDetailResponse> MapSupplier = SupplierProjection.Compile();
     public static SupplierDetailResponse ToResponse(this Supplier entity) => MapSupplier(entity);
@@ -53,7 +54,8 @@ public static class PartnerMapping
             Country = x.Country,
             Phone = x.Phone,
             Fax = x.Fax,
-            CreationDate = x.CreationDate, UpdatedDate = x.UpdatedDate
+            CreationDate = x.CreationDate,
+            UpdatedDate = x.UpdatedDate
         };
     private static readonly Func<Customer, CustomerResponse> MapCustomer = CustomerProjection.Compile();
     public static CustomerResponse ToResponse(this Customer entity) => MapCustomer(entity);

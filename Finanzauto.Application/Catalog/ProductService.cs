@@ -27,10 +27,14 @@ public sealed class ProductService(ICatalogStore store) : IProductService
 
     private static Product Map(ProductRequest request) => new()
     {
-        ProductName = request.ProductName.Trim(), CategoryId = request.CategoryId,
-        SupplierId = request.SupplierId, QuantityPerUnit = request.QuantityPerUnit?.Trim(),
-        UnitPrice = request.UnitPrice, UnitsInStock = request.UnitsInStock,
-        UnitsOnOrder = request.UnitsOnOrder, ReorderLevel = request.ReorderLevel,
+        ProductName = request.ProductName.Trim(),
+        CategoryId = request.CategoryId,
+        SupplierId = request.SupplierId,
+        QuantityPerUnit = request.QuantityPerUnit?.Trim(),
+        UnitPrice = request.UnitPrice,
+        UnitsInStock = request.UnitsInStock,
+        UnitsOnOrder = request.UnitsOnOrder,
+        ReorderLevel = request.ReorderLevel,
         Discontinued = request.Discontinued
     };
 }
