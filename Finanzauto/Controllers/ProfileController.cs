@@ -14,17 +14,11 @@ public sealed class ProfileController(IProfileService profile) : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<ProfileResponse>> Get(CancellationToken ct)
-    {
-        var result = await profile.GetAsync(UserId, ct);
-        return Ok(result);
-    }
+        => Ok(await profile.GetAsync(UserId, ct));
 
     [HttpPut]
     public async Task<ActionResult<ProfileResponse>> Update(UpdateProfileRequest request, CancellationToken ct)
-    {
-        var result = await profile.UpdateAsync(UserId, request, ct);
-        return Ok(result);
-    }
+        => Ok(await profile.UpdateAsync(UserId, request, ct));
 
     [HttpPut("Password")]
     public async Task<IActionResult> ChangePassword(ChangeProfilePasswordRequest request, CancellationToken ct)

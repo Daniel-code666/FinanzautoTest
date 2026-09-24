@@ -74,7 +74,9 @@ public sealed class PartnerService(IPartnerStore store) : IPartnerService
             PartnerMapping.Apply(entity, request);
             return entity;
         }).ToArray();
+
         await store.AddSuppliersAsync(entities, ct);
+        
         return new BulkResponse<SupplierDetailResponse>
         {
             CreatedCount = entities.Length,

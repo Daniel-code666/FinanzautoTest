@@ -45,11 +45,11 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
             else
                 logger.LogWarning(exception, "Error HTTP {HttpCode}. TraceId: {TraceId}", code, context.TraceIdentifier);
 
-            var description = exception is ApiException or BadHttpRequestException || environment.IsDevelopment()
-                ? exception.Message
+            var description = exception is ApiException or BadHttpRequestException || environment.IsDevelopment() ? exception.Message
                 : "Ocurrió un error interno al procesar la solicitud.";
 
             context.Response.Clear();
+
             await WriteAsync(context, new ApiErrorResponse
             {
                 Description = description,

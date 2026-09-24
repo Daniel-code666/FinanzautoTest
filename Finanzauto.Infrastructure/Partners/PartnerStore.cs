@@ -18,25 +18,24 @@ public sealed class PartnerStore(FinanzautoDbContext db) : IPartnerStore
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var term = query.Search.Trim().ToUpperInvariant();
-            rows = rows.Where(x => x.CompanyName.ToUpper().Contains(term) ||
-                (x.ContactName != null && x.ContactName.ToUpper().Contains(term)));
+            rows = rows.Where(x => x.CompanyName.ToUpper().Contains(term) || (x.ContactName != null && x.ContactName.ToUpper().Contains(term)));
         }
+
         if (!string.IsNullOrWhiteSpace(query.Country))
         {
             var country = query.Country.Trim().ToUpperInvariant();
             rows = rows.Where(x => x.Country != null && x.Country.ToUpper() == country);
         }
+
         if (!string.IsNullOrWhiteSpace(query.City))
         {
             var city = query.City.Trim().ToUpperInvariant();
             rows = rows.Where(x => x.City != null && x.City.ToUpper() == city);
         }
+
         var total = await rows.CountAsync(ct);
         var offset = (query.Page - 1) * query.PageSize;
-        var items = await rows
-            .OrderBy(x => x.SupplierId)
-            .Skip(offset)
-            .Take(query.PageSize)
+        var items = await rows.OrderBy(x => x.SupplierId).Skip(offset).Take(query.PageSize)
             .Select(x => new SupplierDetailResponse
             {
                 Id = x.SupplierId,
@@ -55,6 +54,7 @@ public sealed class PartnerStore(FinanzautoDbContext db) : IPartnerStore
                 UpdatedDate = x.UpdatedDate
             })
             .ToListAsync(ct);
+
         return new CatalogPage<SupplierDetailResponse>
         {
             Items = items,
@@ -125,7 +125,6 @@ public sealed class PartnerStore(FinanzautoDbContext db) : IPartnerStore
 
     public async Task AddSuppliersAsync(IReadOnlyList<Supplier> items, CancellationToken ct)
     {
-        // Un único SaveChanges usa una transacción para todos los comandos del lote.
         db.Suppliers.AddRange(items);
         await SaveAsync(ct);
     }

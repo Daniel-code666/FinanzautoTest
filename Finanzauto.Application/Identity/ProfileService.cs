@@ -5,10 +5,7 @@ namespace Finanzauto.Application.Identity;
 public sealed class ProfileService(IIdentityStore store, IPasswordService passwords) : IProfileService
 {
     public async Task<ProfileResponse> GetAsync(int userId, CancellationToken ct)
-    {
-        var user = await RequireUserAsync(userId, ct);
-        return Map(user);
-    }
+        => Map(await RequireUserAsync(userId, ct));
 
     public async Task<ProfileResponse> UpdateAsync(int userId, UpdateProfileRequest request, CancellationToken ct)
     {
@@ -36,10 +33,8 @@ public sealed class ProfileService(IIdentityStore store, IPasswordService passwo
     public async Task ChangePasswordAsync(int userId, ChangeProfilePasswordRequest request, CancellationToken ct)
     {
         var user = await RequireUserAsync(userId, ct);
-        if (!passwords.Verify(user, request.CurrentPassword))
-        {
-            throw new IdentityException(400, "La contraseña actual no es correcta.");
-        }
+
+        if (!passwords.Verify(user, request.CurrentPassword)) throw new IdentityException(400, "La contraseña actual no es correcta.");
 
         user.PasswordHash = passwords.Hash(user, request.NewPassword);
         await store.SaveAsync(ct);
@@ -48,10 +43,8 @@ public sealed class ProfileService(IIdentityStore store, IPasswordService passwo
     private async Task<Employee> RequireUserAsync(int userId, CancellationToken ct)
     {
         var user = await store.FindUserAsync(userId, ct);
-        if (user is null || !user.Active || !user.Role.Active)
-        {
-            throw new IdentityException(401, "La sesión ya no es válida.");
-        }
+
+        if (user is null || !user.Active || !user.Role.Active) throw new IdentityException(401, "La sesión ya no es válida.");
 
         return user;
     }

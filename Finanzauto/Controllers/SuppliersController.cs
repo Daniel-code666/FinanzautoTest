@@ -14,38 +14,23 @@ public sealed class SuppliersController(IPartnerService partners) : ControllerBa
 {
     [HttpGet]
     public async Task<ActionResult<CatalogPage<SupplierDetailResponse>>> List([FromQuery] PartnerQuery query, CancellationToken ct)
-    {
-        var result = await partners.ListSuppliersAsync(query, ct);
-        return Ok(result);
-    }
+        => Ok(await partners.ListSuppliersAsync(query, ct));
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<SupplierDetailResponse>> Get(int id, CancellationToken ct)
-    {
-        var result = await partners.GetSupplierAsync(id, ct);
-        return Ok(result);
-    }
+        => Ok(await partners.GetSupplierAsync(id, ct));
 
     [HttpPost]
     public async Task<ActionResult<SupplierDetailResponse>> Create(SupplierRequest request, CancellationToken ct)
-    {
-        var item = await partners.CreateSupplierAsync(request, ct);
-        return CreatedAtAction(nameof(Get), new { id = item.Id }, item);
-    }
+        => Ok(await partners.CreateSupplierAsync(request, ct));
 
     [HttpPost("Bulk")]
     public async Task<ActionResult<BulkResponse<SupplierDetailResponse>>> CreateBulk([FromBody, Required, MinLength(1), MaxLength(1000)] SupplierRequest[] requests, CancellationToken ct)
-    {
-        var result = await partners.CreateSuppliersAsync(requests, ct);
-        return StatusCode(StatusCodes.Status201Created, result);
-    }
+        => Ok(await partners.CreateSuppliersAsync(requests, ct));
 
     [HttpPut("{id:int}")]
     public async Task<ActionResult<SupplierDetailResponse>> Update(int id, SupplierRequest request, CancellationToken ct)
-    {
-        var result = await partners.UpdateSupplierAsync(id, request, ct);
-        return Ok(result);
-    }
+        => Ok(await partners.UpdateSupplierAsync(id, request, ct));
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
