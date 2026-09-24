@@ -10,8 +10,8 @@ La API incluye registro, login JWT y administración de usuarios y roles, con DT
 validaciones y autorización por rol. También expone `GET /health` y OpenAPI en desarrollo.
 También incluye CRUD de productos y categorías, consultas paginadas, foto de
 categoría en el detalle y generación masiva de hasta 100.000 productos.
-Las pruebas con xUnit e integración se incorporarán al
-final del backend, según el plan acordado.
+Incluye pruebas unitarias xUnit con Moq y pruebas de integración con PostgreSQL
+temporal, ejecutadas automáticamente por GitHub Actions.
 
 ## Arquitectura
 
@@ -142,11 +142,10 @@ activos no se puede desactivar, ni un cliente con pedidos activos.
 El proveedor inicial tiene identificador 1.
 Las claves foráneas por sí solas comprueban existencia, no el valor de Active.
 
-## Próximas etapas
+## Validación del backend
 
-1. Pruebas unitarias con xUnit y pruebas de integración PostgreSQL.
-2. Pipeline CI y preparación de la entrega.
-3. Frontend React, después de cerrar el backend.
+Las pruebas automatizadas y el pipeline CI están implementados. La ejecución
+del frontend mediante Compose se describe al final de este documento.
 
 ## Login y administración de usuarios
 
@@ -555,8 +554,11 @@ de Admin. Como no hay SecurityStamp, el cambio no revoca JWT ya emitidos.
 
 El workflow `.github/workflows/ci.yml` se ejecuta con pushes a `main`, pull requests
 hacia `main` y manualmente desde GitHub Actions. El job `build` instala .NET 10,
-restaura dependencias, compila la solución en Release, verifica el formato y
-construye la imagen `finanzauto-api:ci`. Cualquier fallo detiene el job.
+restaura dependencias, compila la solución en Release, verifica el formato,
+ejecuta las pruebas unitarias y de integración y construye la imagen
+`finanzauto-api:ci`. Cualquier fallo bloquea los pasos posteriores. Los resultados
+TRX se publican como el artefacto `test-results` durante 14 días, incluso si falla
+una prueba, mediante [upload-artifact](https://github.com/actions/upload-artifact).
 
 `global.json` limita el SDK a versiones estables de .NET 10. Las acciones se
 configuran siguiendo la [documentación de setup-dotnet](https://github.com/actions/setup-dotnet).
@@ -567,6 +569,7 @@ Para reproducir las verificaciones desde la raíz:
 dotnet restore Finanzauto.slnx
 dotnet build Finanzauto.slnx --configuration Release --no-restore
 dotnet format Finanzauto.slnx --verify-no-changes --no-restore
+dotnet test Finanzauto.slnx --configuration Release --no-build --logger trx --results-directory artifacts/TestResults
 docker build --file Finanzauto/Dockerfile --tag finanzauto-api:ci .
 ```
 
@@ -601,8 +604,45 @@ contenedores, red y volumen temporales; el workflow repite la limpieza con
 Para reproducir este paso, definir las cuatro variables de entorno anteriores y
 ejecutar `python .github/scripts/smoke.py` desde la raíz con Docker disponible.
 Reservar el nombre de proyecto `finanzauto-ci` para esta verificación desechable.
-Este pipeline no publica imágenes ni realiza despliegues. Las pruebas xUnit siguen
-pendientes y serán una validación adicional a estas comprobaciones de arranque.
+Este pipeline no publica imágenes ni realiza despliegues. Las pruebas xUnit se
+ejecutan antes de este job, también en pull requests, sin GitHub Secrets.
+
+## Pruebas automatizadas
+
+Requisitos: SDK .NET 10 y Docker con contenedores Linux para integración. No es
+necesario levantar el Compose de desarrollo ni definir credenciales locales.
+
+```powershell
+# Todas las pruebas, incluida la carga de 100.000 productos
+dotnet test Finanzauto.slnx --configuration Release
+
+# Solo unitarias (no requieren Docker)
+dotnet test Finanzauto.UnitTests/Finanzauto.UnitTests.csproj --configuration Release
+
+# Solo integración (requiere Docker)
+dotnet test Finanzauto.IntegrationTests/Finanzauto.IntegrationTests.csproj --configuration Release
+
+# Omitir únicamente la carga masiva durante una iteración local
+dotnet test Finanzauto.slnx --configuration Release --filter "Category!=Bulk"
+```
+
+`Finanzauto.UnitTests` cubre login y rechazo de credenciales, usuario/rol inactivo,
+registro, duplicados, protección de roles base y de la cuenta propia, perfil y
+cambio de contraseña, límites y validación de lotes, generación aleatoria y
+validación decimal en es-CO, es-ES y en-US. Moq sustituye las dependencias externas
+y comprueba que los rechazos no escriben datos ni emiten tokens.
+
+`Finanzauto.IntegrationTests` utiliza JWT real, `WebApplicationFactory` y
+[Testcontainers PostgreSQL](https://dotnet.testcontainers.org/examples/aspnet/).
+Un contenedor PostgreSQL 17 sirve a la colección; cada prueba tiene una base nueva,
+sus migraciones y su administrador con contraseña temporal. Se eliminan las bases
+y el contenedor al finalizar. Se verifican permisos Admin/User/rol personalizado,
+perfil, revocación por desactivación, CRUD, filtros/paginación, foto de categoría,
+eliminación lógica, auditoría EF/COPY/SQL, cascada física y rollback de COPY ante
+una fila inválida. La carga de 100.000 productos comprueba cantidad, distribución
+entre SERVIDORES/CLOUD, precios y auditoría; no impone un umbral de rendimiento
+dependiente del equipo. Docker no disponible hace fallar las pruebas de integración;
+no se omiten silenciosamente.
 
 ## Compose unificado: front, API y PostgreSQL
 

@@ -12,8 +12,7 @@ public sealed class PasswordService(IPasswordHasher<Employee> hasher) : IPasswor
     {
         try
         {
-            return hasher.VerifyHashedPassword(employee, employee.PasswordHash, password)
-                != PasswordVerificationResult.Failed;
+            return hasher.VerifyHashedPassword(employee, employee.PasswordHash, password) != PasswordVerificationResult.Failed;
         }
         catch (FormatException) { return false; }
     }

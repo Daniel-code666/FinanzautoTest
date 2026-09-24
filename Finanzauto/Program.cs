@@ -43,8 +43,7 @@ builder.Services.AddRateLimiter(options =>
         limiter.PermitLimit = 2;
         limiter.QueueLimit = 0;
     });
-    options.AddPolicy("PublicIdentity", context => RateLimitPartition.GetFixedWindowLimiter(
-        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+    options.AddPolicy("PublicIdentity", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 10,
@@ -52,9 +51,8 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0
         }));
 });
-builder.Services.AddInfrastructure(
-    builder.Configuration.GetConnectionString("Finanzauto")
-    ?? throw new InvalidOperationException("Configure ConnectionStrings__Finanzauto."));
+
+builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("Finanzauto") ?? throw new InvalidOperationException("Configure ConnectionStrings__Finanzauto."));
 
 var app = builder.Build();
 
@@ -87,9 +85,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapGet("/health", async (FinanzautoDbContext db, CancellationToken cancellationToken) =>
-    await db.Database.CanConnectAsync(cancellationToken)
-        ? Results.Ok(new { status = "Healthy" })
-        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable)).AllowAnonymous();
+    await db.Database.CanConnectAsync(cancellationToken) ? Results.Ok(new { status = "Healthy" }) : Results.StatusCode(StatusCodes.Status503ServiceUnavailable)).AllowAnonymous();
 
 app.MapControllers();
 app.Run();
+
+// Entry point exposed for WebApplicationFactory integration tests.
+public partial class Program { }

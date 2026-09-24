@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="Finanzauto.IntegrationTests/Finanzauto.IntegrationTests.csproj" />
+  <Project Path="Finanzauto.UnitTests/Finanzauto.UnitTests.csproj" />
   <Project Path="Finanzauto/Finanzauto.csproj" />
   <Project Path="Finanzauto.Domain/Finanzauto.Domain.csproj" />
   <Project Path="Finanzauto.Application/Finanzauto.Application.csproj" />

@@ -119,8 +119,7 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var name = category.CategoryName.ToUpperInvariant();
-        if (await db.Categories.IgnoreQueryFilters()
-            .AnyAsync(x => EF.Property<string>(x, "NormalizedName") == name && (!id.HasValue || x.CategoryId != id), ct))
+        if (await db.Categories.IgnoreQueryFilters().AnyAsync(x => EF.Property<string>(x, "NormalizedName") == name && (!id.HasValue || x.CategoryId != id), ct))
             throw new ApiException(409, "El nombre de categoría ya existe, incluso si está inactiva.");
 
         if (id.HasValue)

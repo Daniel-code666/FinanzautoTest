@@ -15,8 +15,8 @@ public sealed class ProductQuery : CatalogQuery, IValidatableObject
 {
     [Range(1, int.MaxValue)] public int? CategoryId { get; set; }
     [Range(1, int.MaxValue)] public int? SupplierId { get; set; }
-    [Range(typeof(decimal), "0", "9999999999999999.99")] public decimal? MinPrice { get; set; }
-    [Range(typeof(decimal), "0", "9999999999999999.99")] public decimal? MaxPrice { get; set; }
+    [Range(typeof(decimal), "0", "9999999999999999.99", ParseLimitsInInvariantCulture = true)] public decimal? MinPrice { get; set; }
+    [Range(typeof(decimal), "0", "9999999999999999.99", ParseLimitsInInvariantCulture = true)] public decimal? MaxPrice { get; set; }
     public bool? InStock { get; set; }
     public bool? Discontinued { get; set; }
     [EnumDataType(typeof(ProductSort))] public ProductSort SortBy { get; set; } = ProductSort.Id;
@@ -35,7 +35,7 @@ public sealed class ProductRequest : IValidatableObject
     [Range(1, int.MaxValue)] public int CategoryId { get; set; }
     [Range(1, int.MaxValue)] public int SupplierId { get; set; }
     [StringLength(100)] public string? QuantityPerUnit { get; set; }
-    [Range(typeof(decimal), "0", "9999999999999999.99")] public decimal UnitPrice { get; set; }
+    [Range(typeof(decimal), "0", "9999999999999999.99", ParseLimitsInInvariantCulture = true)] public decimal UnitPrice { get; set; }
     [Range(0, int.MaxValue)] public int UnitsInStock { get; set; }
     [Range(0, int.MaxValue)] public int UnitsOnOrder { get; set; }
     [Range(0, int.MaxValue)] public int ReorderLevel { get; set; }
@@ -83,4 +83,3 @@ public sealed record ProductResponse(int Id, string ProductName, int CategoryId,
     int UnitsOnOrder, int ReorderLevel, bool Discontinued);
 public sealed record ProductDetailResponse(ProductResponse Product, CategoryDetailResponse Category);
 public sealed record GenerationResponse(Guid GenerationId, int CreatedCount, int[] CategoryIds, int SupplierId, long ElapsedMilliseconds);
-
