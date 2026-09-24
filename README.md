@@ -575,7 +575,8 @@ los cambios antes de subirlos. El job `build` no requiere secrets.
 
 Después de `build`, el job `smoke` se ejecuta solamente en pushes a `main` y
 ejecuciones manuales sobre `main`. Los pull requests ejecutan únicamente `build`.
-Configurar en **Settings > Secrets and variables > Actions**:
+El job referencia el Environment `FinanzautoEnv`. Configurar en
+**Settings > Environments > FinanzautoEnv**, en sus secciones de secrets y variables:
 
 | Tipo | Nombre | Requisito |
 | --- | --- | --- |

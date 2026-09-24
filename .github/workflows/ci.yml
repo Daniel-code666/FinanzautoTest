@@ -44,6 +44,7 @@ jobs:
   smoke:
     name: API y PostgreSQL con secrets
     needs: build
+    environment: FinanzautoEnv
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 15
