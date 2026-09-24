@@ -1,4 +1,6 @@
 using Finanzauto.Application.Orders;
+using Finanzauto.Application.Shippers;
+using Finanzauto.Infrastructure.Shippers;
 using Finanzauto.Infrastructure.Orders;
 using Finanzauto.Infrastructure.Persistence;
 using Finanzauto.Application.Identity;
@@ -27,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IBulkProductWriter, BulkProductWriter>();
         services.AddScoped<IPartnerStore, PartnerStore>();
         services.AddScoped<IOrderStore, OrderStore>();
+        services.AddScoped<IShipperStore, ShipperStore>();
         return services;
     }
 }

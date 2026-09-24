@@ -525,6 +525,36 @@ SaveChanges transaccional: los errores rechazan el lote completo.
 Un lote inválido devuelve 400; los conflictos de relaciones devuelven 409.
 DELETE es lógico y actualiza automáticamente UpdatedDate.
 
+## Transportadoras (Shippers)
+
+Todos los endpoints requieren JWT y permiten los roles autenticados, como Suppliers.
+
+| Método | Ruta | Operación |
+|---|---|---|
+| GET | /Shippers?search=transporte&page=1&pageSize=20 | Listado de activos, búsqueda por nombre o teléfono y paginación |
+| GET | /Shippers/{id} | Detalle de una transportadora activa |
+| POST | /Shippers | Crear; devuelve 200 con el ID generado y las fechas de auditoría |
+| PUT | /Shippers/{id} | Reemplazar nombre y teléfono; devuelve 200 |
+| DELETE | /Shippers/{id} | Inactivar; devuelve 204 |
+
+POST y PUT reciben:
+
+```json
+{
+  "companyName": "Transportadora ejemplo",
+  "phone": "3001234567"
+}
+```
+
+CompanyName es obligatorio y admite hasta 200 caracteres; Phone es opcional y
+admite hasta 30. PUT deja Phone en null si se omite. El listado devuelve items,
+totalCount, page y pageSize; permite páginas de 1 a 100 registros.
+
+La inactivación utiliza EntityStatus.SetActive y devuelve 409 si existe una orden
+activa cuyo ShipVia referencia la transportadora. Las órdenes inactivas no la
+bloquean y conservan su relación histórica. Las consultas por ID de registros
+inactivos o inexistentes devuelven 404. No se requiere una migración adicional.
+
 ## Mi perfil y matriz de acceso
 
 | Funcionalidad | Acceso |

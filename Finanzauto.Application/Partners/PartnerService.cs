@@ -76,7 +76,7 @@ public sealed class PartnerService(IPartnerStore store) : IPartnerService
         }).ToArray();
 
         await store.AddSuppliersAsync(entities, ct);
-        
+
         return new BulkResponse<SupplierDetailResponse>
         {
             CreatedCount = entities.Length,
