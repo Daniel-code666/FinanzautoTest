@@ -71,10 +71,16 @@ public sealed class UserAdministrationService(IIdentityStore store, IPasswordSer
             throw new IdentityException(409, "No puedes desactivar tu propia cuenta.");
         }
 
-        var user = await RequireUserAsync(id, ct);
-        if (active)
+        var user = active
+            ? await store.FindUserIncludingInactiveAsync(id, ct)
+            : await RequireUserAsync(id, ct);
+        if (user == null)
         {
-            await RequireActiveRoleAsync(user.RoleId, ct);
+            throw new IdentityException(404, "Usuario no encontrado.");
+        }
+        if (active && !user.Role.Active)
+        {
+            throw new IdentityException(409, "El rol está inactivo.");
         }
 
         user.Active = active;
@@ -141,7 +147,13 @@ public sealed class UserAdministrationService(IIdentityStore store, IPasswordSer
 
     public async Task SetRoleActiveAsync(int id, bool active, CancellationToken ct)
     {
-        var role = await RequireRoleAsync(id, ct);
+        var role = active
+            ? await store.FindRoleIncludingInactiveAsync(id, ct)
+            : await RequireRoleAsync(id, ct);
+        if (role == null)
+        {
+            throw new IdentityException(404, "Rol no encontrado.");
+        }
         if (!active && (id == AdminRoleId || id == UserRoleId))
         {
             throw new IdentityException(409, "Los roles base Admin y User no se pueden desactivar.");

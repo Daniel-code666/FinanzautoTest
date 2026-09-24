@@ -17,40 +17,25 @@ public sealed class UserAdministrationController(IUserAdministrationService admi
     [AllowAnonymous]
     [EnableRateLimiting("PublicIdentity")]
     public async Task<ActionResult<UserResponse>> Register(RegisterRequest request, CancellationToken ct)
-    {
-        var result = await administration.RegisterAsync(request, ct);
-        return StatusCode(StatusCodes.Status201Created, result);
-    }
+        => Ok(await administration.RegisterAsync(request, ct));
 
     [HttpGet("Users")]
     public async Task<ActionResult<PageResult<UserResponse>>> ListUsers([FromQuery] UserQuery query, CancellationToken ct)
-    {
-        var result = await administration.ListUsersAsync(query, ct);
-        return Ok(result);
-    }
+        => Ok(await administration.ListUsersAsync(query, ct));
 
     [HttpGet("Users/{id:int}")]
     public async Task<ActionResult<UserResponse>> GetUser(int id, CancellationToken ct)
-    {
-        var result = await administration.GetUserAsync(id, ct);
-        return Ok(result);
-    }
+        => Ok(await administration.GetUserAsync(id, ct));
 
     [HttpPost("Users")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<UserResponse>> CreateUser(CreateUserRequest request, CancellationToken ct)
-    {
-        var user = await administration.CreateAsync(request, ct);
-        return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
-    }
+        => Ok(await administration.CreateAsync(request, ct));
 
     [HttpPut("Users/{id:int}")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<UserResponse>> UpdateUser(int id, UpdateUserRequest request, CancellationToken ct)
-    {
-        var result = await administration.UpdateAsync(id, request, ActorId, ct);
-        return Ok(result);
-    }
+        => Ok(await administration.UpdateAsync(id, request, ActorId, ct));
 
     [HttpDelete("Users/{id:int}")]
     [Authorize(Policy = "AdminOnly")]
@@ -79,34 +64,22 @@ public sealed class UserAdministrationController(IUserAdministrationService admi
     [HttpGet("Roles")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<PageResult<RoleResponse>>> ListRoles([FromQuery] PageQuery query, CancellationToken ct)
-    {
-        var result = await administration.ListRolesAsync(query, ct);
-        return Ok(result);
-    }
+        => await administration.ListRolesAsync(query, ct);
 
     [HttpGet("Roles/{id:int}")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<RoleResponse>> GetRole(int id, CancellationToken ct)
-    {
-        var result = await administration.GetRoleAsync(id, ct);
-        return Ok(result);
-    }
+        => await administration.GetRoleAsync(id, ct);
 
     [HttpPost("Roles")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<RoleResponse>> CreateRole(RoleRequest request, CancellationToken ct)
-    {
-        var role = await administration.CreateRoleAsync(request, ct);
-        return CreatedAtAction(nameof(GetRole), new { id = role.Id }, role);
-    }
+        => Ok(await administration.CreateRoleAsync(request, ct));
 
     [HttpPut("Roles/{id:int}")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<RoleResponse>> UpdateRole(int id, RoleRequest request, CancellationToken ct)
-    {
-        var result = await administration.UpdateRoleAsync(id, request, ct);
-        return Ok(result);
-    }
+        => Ok(await administration.UpdateRoleAsync(id, request, ct));
 
     [HttpDelete("Roles/{id:int}")]
     [Authorize(Policy = "AdminOnly")]

@@ -4,5 +4,5 @@ namespace Finanzauto.Application.Partners;
 
 public sealed class CustomerResponse : ContactResponse
 {
-    public string Id { get; init; } = string.Empty;
+    public int Id { get; init; }
 }

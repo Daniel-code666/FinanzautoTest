@@ -156,7 +156,6 @@ public class QueryTests(PostgresFixture postgres) : ApiTest(postgres)
             {
                 var entity = new Customer
                 {
-                    CustomerId = $"C{i}",
                     CompanyName = $"Company {i}",
                     ContactName = "Needle",
                     ContactTitle = "Manager",
@@ -171,7 +170,7 @@ public class QueryTests(PostgresFixture postgres) : ApiTest(postgres)
                 };
                 db.Customers.Add(entity);
                 await db.SaveChangesAsync();
-                ids.Add(entity.CustomerId);
+                ids.Add(entity.CustomerId.ToString());
             }
         }
         var query = "?search=%20nEeDlE%20&country=%20coLOmbia%20&city=%20boGota%20&pageSize=1";

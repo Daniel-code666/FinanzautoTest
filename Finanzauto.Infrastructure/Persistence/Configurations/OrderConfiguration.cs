@@ -12,7 +12,6 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         b.Property(x => x.Active).HasDefaultValue(true);
         b.HasQueryFilter(x => x.Active);
         b.HasKey(x => x.OrderId);
-        b.Property(x => x.CustomerId).HasMaxLength(5);
         b.Property(x => x.Freight).HasPrecision(18, 2);
         b.Property(x => x.ShipName).HasMaxLength(200);
         b.Property(x => x.ShipAddress).HasMaxLength(300);

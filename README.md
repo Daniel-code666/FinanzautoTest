@@ -121,8 +121,8 @@ sin activarlas simultáneamente al arrancar múltiples instancias.
   inicializa opcionalmente con las variables BootstrapAdmin.
 - Category y Supplier son obligatorios en Product; Customer y Employee en Order.
   ShipVia y ReportsTo son opcionales. ReportsTo referencia al supervisor.
-- CustomerId usa un código de hasta cinco caracteres; las demás claves simples
-  son enteros generados. OrderDetail usa la clave compuesta OrderId + ProductId.
+- CustomerId y las demás claves simples son enteros autoincrementales.
+  OrderDetail usa la clave compuesta OrderId + ProductId.
 - Dinero: decimal(18,2). Discount: fracción de 0 a 1. Precios, existencias y flete
   no negativos; cantidades de detalle positivas.
 - Fechas de pedidos: timestamp with time zone, usando UTC desde la aplicación.
@@ -386,9 +386,11 @@ Implementación:
 
 - Generación mediante iterador: no se mantiene una lista de toda la carga ni
   se agregan 100.000 entidades al ChangeTracker.
-- Inserción por streaming con PostgreSQL COPY binario, dentro de una transacción.
+- Inserción con EF mediante AddRange y SaveChangesAsync en lotes de 1.000 productos,
+  liberando su seguimiento después de guardarlos, dentro de una sola transacción.
   Un fallo/cancelación antes del commit revierte la carga completa.
-- Validación y bloqueo compartido de referencias activas dentro de la transacción.
+- Validación de referencias activas con CountAsync y AnyAsync, sin bloqueos explícitos.
+  Se acepta que otra operación pueda desactivarlas después de la validación.
 - Máximo dos generaciones simultáneas por instancia, sin cola; el exceso recibe 429.
 - Consultas AsNoTracking, proyección a DTO y filtros/Skip/Take en PostgreSQL.
 - Índice GIN con pg_trgm sobre SearchName calculado para búsqueda parcial, índices
@@ -438,7 +440,7 @@ tablas incorpora:
 - UpdatedDate: DateTime? UTC, null al crear y actualizado cuando cambia algún
   dato, incluido Active para eliminaciones lógicas y reactivaciones.
 
-PostgreSQL administra estas fechas con triggers; cubren EF Core, COPY y escrituras
+PostgreSQL administra estas fechas con triggers; cubren EF Core y escrituras
 desde DBeaver. EF recupera los valores generados y no permite sobrescribirlos.
 Un UPDATE sin cambios reales no cambia UpdatedDate; modificar exclusivamente
 las fechas tampoco permite falsificarlas. Los DTOs de entrada no admiten fechas.
@@ -486,7 +488,6 @@ Crear cliente:
 
 ```json
 {
-  "customerId": "CLI01",
   "companyName": "Cliente empresarial",
   "contactName": "Carlos López",
   "city": "Medellin",
@@ -496,8 +497,13 @@ Crear cliente:
 
 CompanyName es obligatorio. También se admiten contactTitle, address, region,
 postalCode y fax. Los proveedores admiten homePage y su id es autogenerado.
-CustomerId es un código alfanumérico de 1-5 caracteres, se normaliza a mayúsculas,
-es inmutable y no se puede reutilizar si el cliente está inactivo.
+CustomerId es un entero autoincremental generado por PostgreSQL. No se envía al
+crear clientes; la respuesta devuelve el campo id numérico, usado en las rutas
+/Customers/{id}. Esto también aplica a la inserción masiva.
+La migración CustomerIntegerIdentity asigna nuevos IDs a los clientes existentes,
+incluidos los inactivos, y actualiza Orders.CustomerId conservando las relaciones
+y las fechas de auditoría. Los códigos anteriores se reemplazan; para revertir
+esta migración se requiere restaurar un respaldo previo.
 PUT reemplaza los campos de contacto; los opcionales omitidos quedan en null.
 
 POST /Suppliers/Bulk recibe directamente un arreglo de objetos de proveedor.
@@ -505,15 +511,15 @@ POST /Customers/Bulk recibe directamente un arreglo de objetos de cliente:
 
 ```json
 [
-  { "customerId": "CLI02", "companyName": "Cliente dos" },
-  { "customerId": "CLI03", "companyName": "Cliente tres" }
+  { "companyName": "Cliente dos" },
+  { "companyName": "Cliente tres" }
 ]
 ```
 
 Cada lote admite 1-1000 objetos, valida todos antes de guardar y devuelve 201 con
 createdCount e items (incluidos los ids generados). Se utiliza AddRange y un único
-SaveChanges transaccional: errores o códigos duplicados rechazan el lote completo.
-Un lote inválido devuelve 400; duplicados y conflictos de relaciones devuelven 409.
+SaveChanges transaccional: los errores rechazan el lote completo.
+Un lote inválido devuelve 400; los conflictos de relaciones devuelven 409.
 DELETE es lógico y actualiza automáticamente UpdatedDate.
 
 ## Mi perfil y matriz de acceso
@@ -656,7 +662,7 @@ Un contenedor PostgreSQL 17 sirve a la colección; cada prueba tiene una base nu
 sus migraciones y su administrador con contraseña temporal. Se eliminan las bases
 y el contenedor al finalizar. Se verifican permisos Admin/User/rol personalizado,
 perfil, revocación por desactivación, CRUD, filtros/paginación, foto de categoría,
-eliminación lógica, auditoría EF/COPY/SQL, cascada física y rollback de COPY ante
+eliminación lógica, auditoría EF/SQL, cascada física y rollback entre lotes EF ante
 una fila inválida. La carga de 100.000 productos comprueba cantidad, distribución
 entre SERVIDORES/CLOUD, precios y auditoría; no impone un umbral de rendimiento
 dependiente del equipo. Docker no disponible hace fallar las pruebas de integración;

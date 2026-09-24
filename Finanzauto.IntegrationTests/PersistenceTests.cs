@@ -19,6 +19,7 @@ public sealed class PersistenceTests(PostgresFixture postgres) : ApiTest(postgre
     public async Task Deactivating_order_keeps_rows_and_deactivates_unloaded_details(bool useAsync, bool remove)
     {
         int orderId;
+        int customerId;
         int productId;
         await using (var db = Db())
         {
@@ -32,7 +33,7 @@ public sealed class PersistenceTests(PostgresFixture postgres) : ApiTest(postgre
             };
             var order = new Order
             {
-                Customer = new Customer { CustomerId = "ORD1", CompanyName = "Order customer" },
+                Customer = new Customer { CompanyName = "Order customer" },
                 EmployeeId = employee.EmployeeId,
                 OrderDate = DateTime.UtcNow,
                 OrderDetails = new List<OrderDetail>
@@ -43,6 +44,7 @@ public sealed class PersistenceTests(PostgresFixture postgres) : ApiTest(postgre
             db.Orders.Add(order);
             await db.SaveChangesAsync();
             orderId = order.OrderId;
+            customerId = order.CustomerId;
             productId = product.ProductId;
         }
 
@@ -75,11 +77,11 @@ public sealed class PersistenceTests(PostgresFixture postgres) : ApiTest(postgre
         Assert.False(await verification.Orders.AnyAsync(o => o.OrderId == orderId));
         Assert.False(await verification.OrderDetails.AnyAsync(d => d.OrderId == orderId));
         Assert.True(await verification.Products.AnyAsync(p => p.ProductId == productId));
-        Assert.True(await verification.Customers.AnyAsync(c => c.CustomerId == "ORD1"));
+        Assert.True(await verification.Customers.AnyAsync(c => c.CustomerId == customerId));
     }
 
     [Fact]
-    public async Task COPY_failure_rolls_back_even_preceding_valid_rows()
+    public async Task EF_batch_failure_rolls_back_previously_saved_batches()
     {
         await using var db = Db();
         var category = new Category { CategoryName = "Rollback" };
@@ -95,9 +97,9 @@ public sealed class PersistenceTests(PostgresFixture postgres) : ApiTest(postgre
             QuantityPerUnit = "1"
         };
         var writer = new BulkProductWriter(db);
-        var error = await Assert.ThrowsAsync<PostgresException>(() => writer.WriteAsync(
-            [Make("Valid row", 10), Make("Invalid row", -1)], [category.CategoryId], supplier.SupplierId, default));
-        Assert.Equal(PostgresErrorCodes.CheckViolation, error.SqlState);
+        var error = await Assert.ThrowsAsync<DbUpdateException>(() => writer.WriteAsync(
+            Enumerable.Range(1, 1000).Select(i => Make($"Valid {i}", 10)).Append(Make("Invalid row", -1)), [category.CategoryId], supplier.SupplierId, default));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, Assert.IsType<PostgresException>(error.InnerException).SqlState);
         await using var verification = Db();
         Assert.Equal(0, await verification.Products.IgnoreQueryFilters().CountAsync());
     }
@@ -106,7 +108,7 @@ public sealed class PersistenceTests(PostgresFixture postgres) : ApiTest(postgre
     public async Task Category_update_delete_and_reference_protection()
     {
         var response = await Admin.PostAsJsonAsync("/Category", new { categoryName = "Original" });
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var category = (await response.Content.ReadFromJsonAsync<CategoryDetailResponse>())!;
         Assert.Equal(HttpStatusCode.OK, (await Admin.PutAsJsonAsync($"/Categories/{category.Id}",
             new { categoryName = "Renamed", description = "Updated" })).StatusCode);

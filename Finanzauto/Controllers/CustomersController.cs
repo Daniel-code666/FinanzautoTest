@@ -14,45 +14,30 @@ public sealed class CustomersController(IPartnerService partners) : ControllerBa
 {
     [HttpGet]
     public async Task<ActionResult<CatalogPage<CustomerResponse>>> List([FromQuery] PartnerQuery query, CancellationToken ct)
-    {
-        var result = await partners.ListCustomersAsync(query, ct);
-        return Ok(result);
-    }
+        => Ok(await partners.ListCustomersAsync(query, ct));
 
-    [HttpGet("{id}")]
-    public async Task<ActionResult<CustomerResponse>> Get(string id, CancellationToken ct)
-    {
-        var result = await partners.GetCustomerAsync(id, ct);
-        return Ok(result);
-    }
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<CustomerResponse>> Get(int id, CancellationToken ct)
+        => Ok(await partners.GetCustomerAsync(id, ct));
 
     [HttpPost]
     [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<CustomerResponse>> Create(CustomerRequest request, CancellationToken ct)
-    {
-        var item = await partners.CreateCustomerAsync(request, ct);
-        return CreatedAtAction(nameof(Get), new { id = item.Id }, item);
-    }
+        => Ok(await partners.CreateCustomerAsync(request, ct));
 
     [HttpPost("Bulk")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<BulkResponse<CustomerResponse>>> CreateBulk([FromBody, Required, MinLength(1), MaxLength(1000)] CustomerRequest[] requests, CancellationToken ct)
-    {
-        var result = await partners.CreateCustomersAsync(requests, ct);
-        return StatusCode(StatusCodes.Status201Created, result);
-    }
+        => Ok(await partners.CreateCustomersAsync(requests, ct));
 
-    [HttpPut("{id}")]
+    [HttpPut("{id:int}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<CustomerResponse>> Update(string id, ContactRequest request, CancellationToken ct)
-    {
-        var result = await partners.UpdateCustomerAsync(id, request, ct);
-        return Ok(result);
-    }
+    public async Task<ActionResult<CustomerResponse>> Update(int id, ContactRequest request, CancellationToken ct)
+        => Ok(await partners.UpdateCustomerAsync(id, request, ct));
 
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:int}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> Delete(string id, CancellationToken ct)
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         await partners.DeleteCustomerAsync(id, ct);
         return NoContent();

@@ -6,19 +6,10 @@ namespace Finanzauto.Application.Catalog;
 public sealed class CategoryService(ICatalogStore store) : ICategoryService
 {
     public Task<CatalogPage<CategoryResponse>> ListAsync(CatalogQuery query, CancellationToken ct)
-    {
-        return store.ListCategoriesAsync(query, ct);
-    }
+        => store.ListCategoriesAsync(query, ct);
 
     public async Task<CategoryDetailResponse> GetAsync(int id, CancellationToken ct)
-    {
-        var category = await store.GetCategoryAsync(id, ct);
-        if (category == null)
-        {
-            throw new ApiException(404, "Categoría no encontrada.");
-        }
-        return category;
-    }
+        => await store.GetCategoryAsync(id, ct) ?? throw new ApiException(404, "Categoría no encontrada.");
 
     public async Task<CategoryDetailResponse> CreateAsync(CategoryRequest request, CancellationToken ct)
     {
@@ -33,9 +24,7 @@ public sealed class CategoryService(ICatalogStore store) : ICategoryService
     }
 
     public Task DeleteAsync(int id, CancellationToken ct)
-    {
-        return store.DeactivateCategoryAsync(id, ct);
-    }
+        => store.DeactivateCategoryAsync(id, ct);
 
     private static Category Map(CategoryRequest request)
     {

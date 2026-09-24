@@ -36,28 +36,16 @@ public class PartnerTests
     }
 
     [Fact]
-    public async Task Customer_codes_are_case_insensitively_unique_in_batch()
-    {
-        var store = new Mock<IPartnerStore>(MockBehavior.Strict);
-        var error = await Assert.ThrowsAsync<ApiException>(() =>
-            new PartnerService(store.Object).CreateCustomersAsync([
-                new() { CustomerId = "abc", CompanyName = "First" },
-                new() { CustomerId = "ABC", CompanyName = "Second" }], default));
-        Assert.Equal(409, error.StatusCode);
-        store.VerifyNoOtherCalls();
-    }
-
-    [Fact]
     public async Task Maximum_batch_is_accepted_for_both_partners()
     {
         var store = new Mock<IPartnerStore>();
         var service = new PartnerService(store.Object);
         var suppliers = Enumerable.Range(1, 1000).Select(i => new SupplierRequest { CompanyName = $" Supplier {i} " }).ToArray();
-        var customers = Enumerable.Range(1, 1000).Select(i => new CustomerRequest { CustomerId = $"a{i}", CompanyName = $" Customer {i} " }).ToArray();
+        var customers = Enumerable.Range(1, 1000).Select(i => new CustomerRequest { CompanyName = $" Customer {i} " }).ToArray();
         Assert.Equal(1000, (await service.CreateSuppliersAsync(suppliers, default)).CreatedCount);
         var result = await service.CreateCustomersAsync(customers, default);
         Assert.Equal(1000, result.CreatedCount);
-        Assert.Equal("A1", result.Items[0].Id);
+        Assert.Equal(0, result.Items[0].Id);
         Assert.Equal("Customer 1", result.Items[0].CompanyName);
         store.Verify(s => s.AddCustomersAsync(It.Is<IReadOnlyList<Customer>>(x => x.Count == 1000), default), Times.Once);
         store.Verify(s => s.AddSuppliersAsync(It.Is<IReadOnlyList<Supplier>>(x => x.Count == 1000), default), Times.Once);

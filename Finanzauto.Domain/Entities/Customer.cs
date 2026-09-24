@@ -2,7 +2,7 @@ namespace Finanzauto.Domain.Entities;
 
 public sealed class Customer : Entity
 {
-    public string CustomerId { get; set; } = string.Empty;
+    public int CustomerId { get; set; }
     public string CompanyName { get; set; } = string.Empty;
     public string? ContactName { get; set; }
     public string? ContactTitle { get; set; }

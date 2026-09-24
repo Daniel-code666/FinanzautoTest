@@ -19,8 +19,5 @@ public sealed class ProductController(IProductGenerationService generation) : Co
     [HttpPost]
     [EnableRateLimiting("ProductGeneration")]
     public async Task<ActionResult<GenerationResponse>> Generate(GenerateProductsRequest request, CancellationToken ct)
-    {
-        var result = await generation.GenerateAsync(request, ct);
-        return StatusCode(StatusCodes.Status201Created, result);
-    }
+        => Ok(await generation.GenerateAsync(request, ct));
 }

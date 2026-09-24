@@ -11,7 +11,7 @@ public sealed class RandomProductGenerator : IRandomProductGenerator
         var maximumPriceInCents = (long)(request.MaxPrice * 100);
         for (var index = 0; index < request.Count; index++)
         {
-            // El resto de la división recorre las categorías y vuelve al inicio.
+            // repartir las categorías de manera circular entre los productos generados; si hay más productos que categorías, se reutilizan las categorías.
             var categoryIndex = index % request.CategoryIds.Length;
 
             // yield return entrega una fila por iteración; no construye una lista completa.

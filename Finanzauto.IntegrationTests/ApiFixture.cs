@@ -80,7 +80,7 @@ public abstract class ApiTest(PostgresFixture postgres) : IAsyncLifetime
         var email = Guid.NewGuid().ToString("N") + "@example.test";
         using var response = await Anonymous.PostAsJsonAsync("/UserAdministration/Register",
             new { firstName = "Test", lastName = "User", email, password = Factory.Password });
-        Assert.Equal(System.Net.HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
         var user = (await response.Content.ReadFromJsonAsync<UserResponse>())!;
         Assert.Equal("User", user.RoleName);
         return (await Login(email, Factory.Password), user);

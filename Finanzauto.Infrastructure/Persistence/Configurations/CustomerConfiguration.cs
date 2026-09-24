@@ -12,7 +12,7 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         b.Property(x => x.Active).HasDefaultValue(true);
         b.HasQueryFilter(x => x.Active);
         b.HasKey(x => x.CustomerId);
-        b.Property(x => x.CustomerId).HasMaxLength(5);
+        b.Property(x => x.CustomerId).UseIdentityByDefaultColumn();
         b.Property(x => x.CompanyName).HasMaxLength(200).IsRequired();
         b.HasIndex(x => x.CompanyName);
         b.Property(x => x.Address).HasMaxLength(300);

@@ -149,7 +149,7 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
     public async Task<int> SaveProductAsync(int? id, Product product, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        await CatalogReferenceGuard.LockActiveAsync(db, [product.CategoryId], product.SupplierId, ct);
+        await CatalogReferenceGuard.ValidateAsync(db, [product.CategoryId], product.SupplierId, ct);
         if (id.HasValue)
         {
             var existing = await db.Products.SingleOrDefaultAsync(x => x.ProductId == id, ct)
@@ -185,17 +185,16 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
     public async Task<CatalogPage<CategoryResponse>> ListCategoriesAsync(CatalogQuery query, CancellationToken ct)
     {
         var categories = db.Categories.AsNoTracking();
+
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var term = query.Search.Trim().ToUpperInvariant();
             categories = categories.Where(x => x.CategoryName.ToUpper().Contains(term));
         }
+
         var total = await categories.CountAsync(ct);
         var offset = (query.Page - 1) * query.PageSize;
-        var items = await categories
-            .OrderBy(x => x.CategoryId)
-            .Skip(offset)
-            .Take(query.PageSize)
+        var items = await categories.OrderBy(x => x.CategoryId).Skip(offset).Take(query.PageSize)
             .Select(x => new CategoryResponse
             {
                 Id = x.CategoryId,
@@ -204,6 +203,7 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
                 HasPicture = x.Picture != null
             })
             .ToListAsync(ct);
+
         return new CatalogPage<CategoryResponse>
         {
             Items = items,
@@ -222,18 +222,18 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
                 Description = x.Description,
                 Picture = x.Picture,
                 PictureContentType = x.PictureContentType
-            }).SingleOrDefaultAsync(ct);
+            }).FirstOrDefaultAsync(ct);
 
     public async Task<int> SaveCategoryAsync(int? id, Category category, CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var name = category.CategoryName.ToUpperInvariant();
-        if (await db.Categories.IgnoreQueryFilters().AnyAsync(x => EF.Property<string>(x, "NormalizedName") == name && (!id.HasValue || x.CategoryId != id), ct))
+
+        if (await db.Categories.AnyAsync(x => x.CategoryName == name && (!id.HasValue || x.CategoryId != id), ct))
             throw new ApiException(409, "El nombre de categoría ya existe, incluso si está inactiva.");
 
         if (id.HasValue)
         {
-            var existing = await LockCategoryAsync(id.Value, ct);
+            var existing = await db.Categories.FirstOrDefaultAsync(x => x.CategoryId == id, ct) ?? throw new ApiException(404, "Categoría no encontrada.");
             category.CategoryId = id.Value;
             db.Entry(existing).CurrentValues.SetValues(new
             {
@@ -243,29 +243,22 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
                 category.PictureContentType
             });
         }
-        else db.Categories.Add(category);
+        else
+            db.Categories.Add(category);
+
         await SaveAsync(ct);
-        await transaction.CommitAsync(ct);
         return category.CategoryId;
     }
 
     public async Task DeactivateCategoryAsync(int id, CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var category = await LockCategoryAsync(id, ct);
+        var category = await db.Categories.FirstOrDefaultAsync(x => x.CategoryId == id, ct) ?? throw new ApiException(404, "Categoría no encontrada.");
+
         if (await db.Products.AnyAsync(x => x.CategoryId == id, ct))
             throw new ApiException(409, "Reasigna o desactiva los productos activos antes de eliminar la categoría.");
+
         db.Categories.Remove(category);
         await SaveAsync(ct);
-        await transaction.CommitAsync(ct);
-    }
-
-    private async Task<Category> LockCategoryAsync(int id, CancellationToken ct)
-    {
-        var categories = await db.Categories.FromSql($"""
-            SELECT * FROM "Categories" WHERE "CategoryId" = {id} AND "Active" FOR UPDATE
-            """).ToListAsync(ct);
-        return categories.SingleOrDefault() ?? throw new ApiException(404, "Categoría no encontrada.");
     }
 
     public async Task<CatalogPage<SupplierResponse>> ListSuppliersAsync(CatalogQuery query, CancellationToken ct)
@@ -299,16 +292,6 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
 
     private async Task SaveAsync(CancellationToken ct)
     {
-        try { await db.SaveChangesAsync(ct); }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-        { SqlState: PostgresErrorCodes.UniqueViolation })
-        {
-            throw new ApiException(409, "Ya existe un registro con ese nombre.");
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-        { SqlState: PostgresErrorCodes.ForeignKeyViolation })
-        {
-            throw new ApiException(409, "Una referencia ya no existe. Actualiza los datos e intenta nuevamente.");
-        }
+        await db.SaveChangesAsync(ct);
     }
 }

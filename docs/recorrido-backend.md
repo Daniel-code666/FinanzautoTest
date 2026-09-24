@@ -6,15 +6,15 @@ Esta guía explica las partes que requieren más contexto para seguir el código
 
 La petición `POST /Product` llega a `ProductGenerationService`, que coordina la generación y mide su duración. `RandomProductGenerator` produce los productos con `yield return`: cada producto se crea cuando el consumidor avanza en el recorrido, sin construir primero una lista de 100.000 objetos. Los precios se generan en centavos y luego se convierten a decimal. El operador `%` permite recorrer las categorías repetidamente y repartir los productos entre ellas.
 
-`BulkProductWriter.WriteAsync` abre una transacción, valida y bloquea las referencias, envía los productos y confirma el resultado. `CopyProductsAsync` usa el protocolo binario `COPY` de PostgreSQL para enviar filas sin añadir cada producto al seguimiento de cambios de EF. El orden y los tipos de los valores enviados deben coincidir con las columnas de la instrucción `COPY`.
+`BulkProductWriter.WriteAsync` abre una transacción y valida las referencias con EF. `Chunk(1000)` divide el iterador en arreglos de hasta 1.000 productos. Cada arreglo se guarda con `AddRange` y `SaveChangesAsync`; después sus productos se separan del seguimiento de EF con `EntityState.Detached` para limitar el uso de memoria.
 
-`CompleteAsync` termina el envío; `CommitAsync` confirma la transacción. Si una fila falla, la transacción se desecha sin confirmar y se revierte el lote. La petición HTTP espera a que termine este proceso: no es una tarea en segundo plano.
+`CommitAsync` confirma la transacción al terminar todos los lotes. Si una fila falla o la operación se cancela, se revierten también los lotes guardados anteriormente. La petición HTTP espera a que termine este proceso. EF realiza más trabajo por producto que la carga binaria anterior; se prioriza un código más sencillo.
 
-## Referencias y bloqueos
+## Validación de referencias
 
-`CatalogReferenceGuard` consulta categorías y proveedor activos mediante `FOR SHARE`, dentro de la transacción del consumidor. Esto impide que otra transacción modifique o elimine esas referencias mientras se guardan los productos. Las lecturas normales pueden continuar; las operaciones incompatibles esperan a que termine la transacción.
+`CatalogReferenceGuard.ValidateAsync` usa `CountAsync` para comprobar las categorías distintas y `AnyAsync` para comprobar el proveedor. Las consultas se ejecutan con EF y una referencia inexistente o inactiva produce HTTP 409. La misma validación se usa al guardar productos manualmente.
 
-Las categorías se consultan en un orden estable para reducir el riesgo de bloqueos mutuos. Si falta una referencia activa, se devuelve un conflicto HTTP 409. Las consultas interpoladas de EF envían los valores como parámetros.
+Estas consultas no bloquean las referencias: otra operación puede desactivarlas después de validarlas. Es una diferencia de concurrencia aceptada. Las claves foráneas siguen garantizando la integridad referencial, pero no el estado `Active`.
 
 ## Eliminación lógica
 
@@ -30,7 +30,7 @@ Un `DELETE` ejecutado directamente en PostgreSQL no pasa por `SaveChanges`: usa 
 
 La migración `AuditDatesWithoutSecurityStamp` define los triggers que asignan `CreationDate` al insertar y dejan `UpdatedDate` inicialmente en null. Al actualizar, conservan la fecha de creación y cambian la de actualización solamente si cambian datos de la fila. La comparación excluye las propias fechas y las columnas calculadas `SearchName` y `NormalizedName`.
 
-Al hacerlo en PostgreSQL, las fechas también funcionan con `COPY` y SQL ejecutado desde DBeaver. `ConfigureAuditDates` indica a EF que estos valores los genera la base de datos y que debe ignorar los valores asignados desde la aplicación. Esta aclaración del código no requiere nuevas migraciones.
+Al hacerlo en PostgreSQL, las fechas también funcionan con EF y SQL ejecutado desde DBeaver. `ConfigureAuditDates` indica a EF que estos valores los genera la base de datos y que debe ignorar los valores asignados desde la aplicación. Esta aclaración del código no requiere nuevas migraciones.
 
 ## Autenticación JWT
 

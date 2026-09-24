@@ -39,6 +39,7 @@ public static class PartnerMapping
         entity.Fax = request.Fax?.Trim();
         entity.HomePage = request.HomePage?.Trim();
     }
+
     public static CustomerResponse ToResponse(this Customer entity)
     {
         return new CustomerResponse

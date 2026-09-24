@@ -33,7 +33,7 @@ public sealed class FinanzautoDbContext : DbContext
 
     private static void ConfigureAuditDates(ModelBuilder modelBuilder)
     {
-        // PostgreSQL asigna estas fechas con triggers, también para COPY y SQL directo.
+        // PostgreSQL asigna estas fechas con triggers, también para EF y SQL directo.
         // EF las lee al guardar y evita enviar valores escritos por la aplicación.
         foreach (var entityType in modelBuilder.Model.GetEntityTypes()
                      .Where(type => typeof(AuditTable).IsAssignableFrom(type.ClrType)))

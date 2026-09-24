@@ -11,20 +11,20 @@ namespace Finanzauto.IntegrationTests;
 [Collection("PostgreSQL")]
 public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
 {
-    private static async Task<T> Created<T>(HttpResponseMessage response)
+    private static async Task<T> ReadResponse<T>(HttpResponseMessage response, HttpStatusCode expected = HttpStatusCode.Created)
     {
         using (response)
         {
-            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            Assert.Equal(expected, response.StatusCode);
             return (await response.Content.ReadFromJsonAsync<T>())!;
         }
     }
 
     private async Task<(int Category, int Supplier)> References(HttpClient client)
     {
-        var category = await Created<CategoryDetailResponse>(await client.PostAsJsonAsync("/Category",
-            new { categoryName = "SERVIDORES", picture = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 } }));
-        var supplier = await Created<SupplierDetailResponse>(await client.PostAsJsonAsync("/Suppliers", new { companyName = "Supplier" }));
+        var category = await ReadResponse<CategoryDetailResponse>(await client.PostAsJsonAsync("/Category",
+            new { categoryName = "SERVIDORES", picture = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 } }), HttpStatusCode.OK);
+        var supplier = await ReadResponse<SupplierDetailResponse>(await client.PostAsJsonAsync("/Suppliers", new { companyName = "Supplier" }));
         return (category.Id, supplier.Id);
     }
 
@@ -94,14 +94,14 @@ public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
         var (client, user) = await Register();
         using (client)
         {
-            var customer = await Created<CustomerResponse>(await Admin.PostAsJsonAsync("/Customers",
-                new { customerId = "C1", companyName = "Customer" }));
-            foreach (var path in new[] { "/Customers", "/Customers/C1", "/UserAdministration/Users", $"/UserAdministration/Users/{user.Id}" })
+            var customer = await ReadResponse<CustomerResponse>(await Admin.PostAsJsonAsync("/Customers",
+                new { companyName = "Customer" }), HttpStatusCode.OK);
+            foreach (var path in new[] { "/Customers", $"/Customers/{customer.Id}", "/UserAdministration/Users", $"/UserAdministration/Users/{user.Id}" })
                 Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(path)).StatusCode);
-            await Error(await client.PostAsJsonAsync("/Customers", new { customerId = "C2", companyName = "Other" }), HttpStatusCode.Forbidden);
-            await Error(await client.PostAsJsonAsync("/Customers/Bulk", new[] { new { customerId = "C2", companyName = "Other" } }), HttpStatusCode.Forbidden);
-            await Error(await client.PutAsJsonAsync("/Customers/C1", new { companyName = "Other" }), HttpStatusCode.Forbidden);
-            await Error(await client.DeleteAsync("/Customers/C1"), HttpStatusCode.Forbidden);
+            await Error(await client.PostAsJsonAsync("/Customers", new { companyName = "Other" }), HttpStatusCode.Forbidden);
+            await Error(await client.PostAsJsonAsync("/Customers/Bulk", new[] { new { companyName = "Other" } }), HttpStatusCode.Forbidden);
+            await Error(await client.PutAsJsonAsync($"/Customers/{customer.Id}", new { companyName = "Other" }), HttpStatusCode.Forbidden);
+            await Error(await client.DeleteAsync($"/Customers/{customer.Id}"), HttpStatusCode.Forbidden);
             await Error(await client.PostAsJsonAsync("/UserAdministration/Users",
                 new { firstName = "A", lastName = "B", email = "new@example.test", password = Factory.Password, roleId = 1 }), HttpStatusCode.Forbidden);
             await Error(await client.PutAsJsonAsync($"/UserAdministration/Users/{user.Id}",
@@ -112,9 +112,9 @@ public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
             await Error(await client.PostAsJsonAsync("/UserAdministration/Roles", new { name = "Other" }), HttpStatusCode.Forbidden);
             await Error(await client.PutAsJsonAsync("/UserAdministration/Roles/1", new { name = "Other" }), HttpStatusCode.Forbidden);
             await Error(await client.DeleteAsync("/UserAdministration/Roles/1"), HttpStatusCode.Forbidden);
-            Assert.Equal("Customer", (await Admin.GetFromJsonAsync<CustomerResponse>("/Customers/C1"))!.CompanyName);
-            Assert.Equal(HttpStatusCode.OK, (await Admin.PutAsJsonAsync("/Customers/C1", new { companyName = "Updated" })).StatusCode);
-            Assert.Equal(HttpStatusCode.NoContent, (await Admin.DeleteAsync("/Customers/C1")).StatusCode);
+            Assert.Equal("Customer", (await Admin.GetFromJsonAsync<CustomerResponse>($"/Customers/{customer.Id}"))!.CompanyName);
+            Assert.Equal(HttpStatusCode.OK, (await Admin.PutAsJsonAsync($"/Customers/{customer.Id}", new { companyName = "Updated" })).StatusCode);
+            Assert.Equal(HttpStatusCode.NoContent, (await Admin.DeleteAsync($"/Customers/{customer.Id}")).StatusCode);
             await using var db = Db();
             Assert.False((await db.Customers.IgnoreQueryFilters().SingleAsync(c => c.CustomerId == customer.Id)).Active);
         }
@@ -145,12 +145,12 @@ public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
     [Fact]
     public async Task Administrator_can_manage_roles_and_users_and_deactivation_invalidates_JWT()
     {
-        var role = await Created<RoleResponse>(await Admin.PostAsJsonAsync("/UserAdministration/Roles", new { name = "Auditor" }));
-        var employee = await Created<UserResponse>(await Admin.PostAsJsonAsync("/UserAdministration/Users",
-            new { firstName = "Audit", lastName = "User", email = "audit@example.test", password = Factory.Password, roleId = role.Id }));
+        var role = await ReadResponse<RoleResponse>(await Admin.PostAsJsonAsync("/UserAdministration/Roles", new { name = "Auditor" }), HttpStatusCode.OK);
+        var employee = await ReadResponse<UserResponse>(await Admin.PostAsJsonAsync("/UserAdministration/Users",
+            new { firstName = "Audit", lastName = "User", email = "audit@example.test", password = Factory.Password, roleId = role.Id }), HttpStatusCode.OK);
         using var customUser = await Login(employee.Email, Factory.Password);
         Assert.Equal(HttpStatusCode.OK, (await customUser.GetAsync("/Customers")).StatusCode);
-        await Error(await customUser.PostAsJsonAsync("/Customers", new { customerId = "X", companyName = "X" }), HttpStatusCode.Forbidden);
+        await Error(await customUser.PostAsJsonAsync("/Customers", new { companyName = "X" }), HttpStatusCode.Forbidden);
         Assert.Equal(HttpStatusCode.OK, (await Admin.PutAsJsonAsync($"/UserAdministration/Users/{employee.Id}",
             new { firstName = "Modified", lastName = "User", email = employee.Email, roleId = role.Id })).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await Admin.DeleteAsync($"/UserAdministration/Users/{employee.Id}")).StatusCode);
@@ -159,6 +159,13 @@ public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
         Assert.Equal(HttpStatusCode.OK, (await customUser.GetAsync("/Profile")).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await Admin.DeleteAsync($"/UserAdministration/Roles/{role.Id}")).StatusCode);
         await Error(await customUser.GetAsync("/Profile"), HttpStatusCode.Unauthorized);
+        await Error(await Admin.PostAsync($"/UserAdministration/Users/{employee.Id}/Reactivate", null), HttpStatusCode.Conflict);
+        Assert.Equal(HttpStatusCode.NoContent, (await Admin.PostAsync($"/UserAdministration/Roles/{role.Id}/Reactivate", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await customUser.GetAsync("/Profile")).StatusCode);
+        await Error(await customUser.PostAsync($"/UserAdministration/Users/{employee.Id}/Reactivate", null), HttpStatusCode.Forbidden);
+        await Error(await customUser.PostAsync($"/UserAdministration/Roles/{role.Id}/Reactivate", null), HttpStatusCode.Forbidden);
+        await Error(await Admin.PostAsync($"/UserAdministration/Users/{int.MaxValue}/Reactivate", null), HttpStatusCode.NotFound);
+        await Error(await Admin.PostAsync($"/UserAdministration/Roles/{int.MaxValue}/Reactivate", null), HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -171,7 +178,7 @@ public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
             var ids = new List<int>();
             foreach (var price in new[] { 10m, 20m, 30m, 40m })
             {
-                var product = await Created<ProductDetailResponse>(await client.PostAsJsonAsync("/Products",
+                var product = await ReadResponse<ProductDetailResponse>(await client.PostAsJsonAsync("/Products",
                     new { productName = $"Server {price}", categoryId = category, supplierId = supplier, unitPrice = price, unitsInStock = 5 }));
                 ids.Add(product.Product.Id);
             }
@@ -201,24 +208,26 @@ public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
     }
 
     [Fact]
-    public async Task Partner_bulk_persists_all_and_conflict_preserves_existing_data()
+    public async Task Partner_bulk_generates_ids_and_invalid_batch_preserves_existing_data()
     {
         await using var initialDb = Db();
         var initialSuppliers = await initialDb.Suppliers.CountAsync();
-        var suppliers = await Created<BulkResponse<SupplierDetailResponse>>(await Admin.PostAsJsonAsync("/Suppliers/Bulk",
+        var suppliers = await ReadResponse<BulkResponse<SupplierDetailResponse>>(await Admin.PostAsJsonAsync("/Suppliers/Bulk",
             new[] { new { companyName = "One" }, new { companyName = "Two" } }));
         Assert.Equal(2, suppliers.CreatedCount);
-        var customers = await Created<BulkResponse<CustomerResponse>>(await Admin.PostAsJsonAsync("/Customers/Bulk",
-            new[] { new { customerId = "a1", companyName = "One" }, new { customerId = "a2", companyName = "Two" } }));
+        var customers = await ReadResponse<BulkResponse<CustomerResponse>>(await Admin.PostAsJsonAsync("/Customers/Bulk",
+            new[] { new { companyName = "One" }, new { companyName = "Two" } }), HttpStatusCode.OK);
         Assert.Equal(2, customers.CreatedCount);
+        Assert.All(customers.Items, c => Assert.True(c.Id > 0));
+        Assert.Equal(2, customers.Items.Select(c => c.Id).Distinct().Count());
         await Error(await Admin.PostAsJsonAsync("/Customers/Bulk",
-            new[] { new { customerId = "new1", companyName = "New" }, new { customerId = "A1", companyName = "Duplicate" } }), HttpStatusCode.Conflict);
+            new[] { new { companyName = "New" }, new { companyName = "" } }), HttpStatusCode.BadRequest);
         await Error(await Admin.PostAsJsonAsync("/Suppliers/Bulk",
             new[] { new { companyName = "Valid" }, new { companyName = "" } }), HttpStatusCode.BadRequest);
         await using var db = Db();
         Assert.Equal(2, await db.Customers.CountAsync());
         Assert.Equal(initialSuppliers + 2, await db.Suppliers.CountAsync());
-        Assert.False(await db.Customers.AnyAsync(c => c.CustomerId == "NEW1"));
+        Assert.False(await db.Customers.AnyAsync(c => c.CompanyName == "New"));
         var supplierId = suppliers.Items[0].Id;
         Assert.Equal(HttpStatusCode.OK, (await Admin.PutAsJsonAsync($"/Suppliers/{supplierId}", new { companyName = "Updated" })).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await Admin.DeleteAsync($"/Suppliers/{supplierId}")).StatusCode);
@@ -227,11 +236,11 @@ public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
 
     [Fact]
     [Trait("Category", "Bulk")]
-    public async Task Generate_100000_products_with_real_COPY_and_audit()
+    public async Task Generate_100000_products_with_EF_batches_and_audit()
     {
         var (category, supplier) = await References(Admin);
-        var cloud = await Created<CategoryDetailResponse>(await Admin.PostAsJsonAsync("/Category", new { categoryName = "CLOUD" }));
-        var result = await Created<GenerationResponse>(await Admin.PostAsJsonAsync("/Product",
+        var cloud = await ReadResponse<CategoryDetailResponse>(await Admin.PostAsJsonAsync("/Category", new { categoryName = "CLOUD" }), HttpStatusCode.OK);
+        var result = await ReadResponse<GenerationResponse>(await Admin.PostAsJsonAsync("/Product",
             new { count = 100000, categoryIds = new[] { category, cloud.Id }, supplierId = supplier, minPrice = 10m, maxPrice = 20m }));
         Assert.Equal(100000, result.CreatedCount);
         await using var db = Db();

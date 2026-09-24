@@ -7,6 +7,8 @@ public interface IIdentityStore
     Task<Employee?> FindByEmailAsync(string normalizedEmail, CancellationToken ct);
     Task<Employee?> FindUserAsync(int id, CancellationToken ct);
     Task<Role?> FindRoleAsync(int id, CancellationToken ct);
+    Task<Employee?> FindUserIncludingInactiveAsync(int id, CancellationToken ct);
+    Task<Role?> FindRoleIncludingInactiveAsync(int id, CancellationToken ct);
     Task<bool> EmailExistsAsync(string normalizedEmail, int? exceptId, CancellationToken ct);
     Task<bool> RoleNameExistsAsync(string normalizedName, int? exceptId, CancellationToken ct);
     Task<PageResult<UserResponse>> ListUsersAsync(UserQuery query, CancellationToken ct);
@@ -48,4 +50,3 @@ public interface IUserAdministrationService
     Task<RoleResponse> UpdateRoleAsync(int id, RoleRequest request, CancellationToken ct);
     Task SetRoleActiveAsync(int id, bool active, CancellationToken ct);
 }
-
