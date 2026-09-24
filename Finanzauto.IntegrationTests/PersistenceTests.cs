@@ -11,6 +11,73 @@ namespace Finanzauto.IntegrationTests;
 [Collection("PostgreSQL")]
 public sealed class PersistenceTests(PostgresFixture postgres) : ApiTest(postgres)
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Deactivating_order_keeps_rows_and_deactivates_unloaded_details(bool useAsync, bool remove)
+    {
+        int orderId;
+        int productId;
+        await using (var db = Db())
+        {
+            var employee = await db.Employees.FirstAsync();
+            var supplier = await db.Suppliers.FirstAsync();
+            var product = new Product
+            {
+                ProductName = "Order product",
+                Category = new Category { CategoryName = "Order category" },
+                SupplierId = supplier.SupplierId
+            };
+            var order = new Order
+            {
+                Customer = new Customer { CustomerId = "ORD1", CompanyName = "Order customer" },
+                EmployeeId = employee.EmployeeId,
+                OrderDate = DateTime.UtcNow,
+                OrderDetails = new List<OrderDetail>
+                {
+                    new OrderDetail { Product = product, Quantity = 1, UnitPrice = 10 }
+                }
+            };
+            db.Orders.Add(order);
+            await db.SaveChangesAsync();
+            orderId = order.OrderId;
+            productId = product.ProductId;
+        }
+
+        await using (var db = Db())
+        {
+            var order = await db.Orders.SingleAsync(o => o.OrderId == orderId);
+            Assert.Empty(db.ChangeTracker.Entries<OrderDetail>());
+            if (remove)
+            {
+                db.Orders.Remove(order);
+            }
+            else
+            {
+                order.Active = false;
+            }
+
+            if (useAsync)
+            {
+                await db.SaveChangesAsync();
+            }
+            else
+            {
+                db.SaveChanges();
+            }
+        }
+
+        await using var verification = Db();
+        Assert.False((await verification.Orders.IgnoreQueryFilters().SingleAsync(o => o.OrderId == orderId)).Active);
+        Assert.False((await verification.OrderDetails.IgnoreQueryFilters().SingleAsync(d => d.OrderId == orderId)).Active);
+        Assert.False(await verification.Orders.AnyAsync(o => o.OrderId == orderId));
+        Assert.False(await verification.OrderDetails.AnyAsync(d => d.OrderId == orderId));
+        Assert.True(await verification.Products.AnyAsync(p => p.ProductId == productId));
+        Assert.True(await verification.Customers.AnyAsync(c => c.CustomerId == "ORD1"));
+    }
+
     [Fact]
     public async Task COPY_failure_rolls_back_even_preceding_valid_rows()
     {

@@ -10,21 +10,35 @@ internal static class CatalogReferenceGuard
     // las referencias mientras se crea o actualiza el producto.
     public static async Task LockActiveAsync(FinanzautoDbContext db, int[] categoryIds, int supplierId, CancellationToken ct)
     {
-        var ids = categoryIds.Distinct().Order().ToArray();
-        var found = await db.Database.SqlQuery<int>($"""
+        await LockCategoriesAsync(db, categoryIds, ct);
+        await LockSupplierAsync(db, supplierId, ct);
+    }
+
+    private static async Task LockCategoriesAsync(FinanzautoDbContext db, int[] categoryIds, CancellationToken ct)
+    {
+        // Un orden común reduce el riesgo de bloqueos cruzados entre cargas concurrentes.
+        var distinctCategoryIds = categoryIds.Distinct().Order().ToArray();
+        var activeCategoryIds = await db.Database.SqlQuery<int>($"""
             SELECT "CategoryId" AS "Value" FROM "Categories"
-            WHERE "CategoryId" = ANY({ids}) AND "Active"
+            WHERE "CategoryId" = ANY({distinctCategoryIds}) AND "Active"
             ORDER BY "CategoryId" FOR SHARE
             """).ToListAsync(ct);
-        if (found.Count != ids.Length)
+        if (activeCategoryIds.Count != distinctCategoryIds.Length)
+        {
             throw new ApiException(409, "Todas las categorías deben existir y estar activas.");
+        }
+    }
 
-        var suppliers = await db.Database.SqlQuery<int>($"""
+    private static async Task LockSupplierAsync(FinanzautoDbContext db, int supplierId, CancellationToken ct)
+    {
+        // Otra transacción puede leer estas filas, pero debe esperar para actualizarlas o borrarlas.
+        var activeSupplierIds = await db.Database.SqlQuery<int>($"""
             SELECT "SupplierId" AS "Value" FROM "Suppliers"
             WHERE "SupplierId" = {supplierId} AND "Active" FOR SHARE
             """).ToListAsync(ct);
-        if (suppliers.Count == 0)
+        if (activeSupplierIds.Count == 0)
+        {
             throw new ApiException(409, "El proveedor debe existir y estar activo.");
+        }
     }
 }
-

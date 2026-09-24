@@ -28,6 +28,13 @@ public sealed class FinanzautoDbContext : DbContext
     {
         modelBuilder.HasPostgresExtension("pg_trgm");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(FinanzautoDbContext).Assembly);
+        ConfigureAuditDates(modelBuilder);
+    }
+
+    private static void ConfigureAuditDates(ModelBuilder modelBuilder)
+    {
+        // PostgreSQL asigna estas fechas con triggers, también para COPY y SQL directo.
+        // EF las lee al guardar y evita enviar valores escritos por la aplicación.
         foreach (var entityType in modelBuilder.Model.GetEntityTypes()
                      .Where(type => typeof(AuditTable).IsAssignableFrom(type.ClrType)))
         {
@@ -47,6 +54,7 @@ public sealed class FinanzautoDbContext : DbContext
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
+        // Los detalles deben cargarse antes de convertir el borrado del pedido en un UPDATE.
         var orderIds = GetDeactivatedOrderIds();
         if (orderIds.Length > 0)
         {
@@ -71,10 +79,14 @@ public sealed class FinanzautoDbContext : DbContext
         return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
-    private int[] GetDeactivatedOrderIds() => ChangeTracker.Entries<Order>()
-        .Where(x => x.State == EntityState.Deleted ||
-            (x.State == EntityState.Modified && !x.Entity.Active))
-        .Select(x => x.Entity.OrderId).ToArray();
+    private int[] GetDeactivatedOrderIds()
+    {
+        return ChangeTracker.Entries<Order>()
+            .Where(x => x.State == EntityState.Deleted ||
+                (x.State == EntityState.Modified && !x.Entity.Active))
+            .Select(x => x.Entity.OrderId)
+            .ToArray();
+    }
 
     private void DeactivateOrderDetails(int[] orderIds)
     {
@@ -87,16 +99,26 @@ public sealed class FinanzautoDbContext : DbContext
 
     private void PrepareChanges()
     {
+        ConvertDeletesToSoftDeletes();
+        NormalizeEmployeeEmails();
+    }
+
+    private void ConvertDeletesToSoftDeletes()
+    {
         foreach (var entry in ChangeTracker.Entries<Entity>()
                      .Where(x => x.State == EntityState.Deleted))
         {
+            // Se descartan otros cambios pendientes de esta entidad y solo se guarda Active=false.
             entry.State = EntityState.Unchanged;
             entry.Entity.Active = false;
             entry.Property(x => x.Active).IsModified = true;
         }
+    }
 
+    private void NormalizeEmployeeEmails()
+    {
         foreach (var entry in ChangeTracker.Entries<Employee>()
-                     .Where(x => x.State is EntityState.Added or EntityState.Modified))
+                     .Where(x => x.State == EntityState.Added || x.State == EntityState.Modified))
         {
             entry.Entity.Email = entry.Entity.Email.Trim();
             entry.Entity.NormalizedEmail = entry.Entity.Email.ToUpperInvariant();

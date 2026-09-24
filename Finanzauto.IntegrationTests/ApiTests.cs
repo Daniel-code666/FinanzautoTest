@@ -41,6 +41,24 @@ public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Authentication_rejects_malformed_or_altered_tokens(bool alterSignature)
+    {
+        var token = "invalid-token";
+        if (alterSignature)
+        {
+            var parts = Admin.DefaultRequestHeaders.Authorization!.Parameter!.Split('.');
+            parts[2] = (parts[2][0] == 'A' ? "B" : "A") + parts[2].Substring(1);
+            token = string.Join(".", parts);
+        }
+
+        using var client = Factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        await Error(await client.GetAsync("/Profile"), HttpStatusCode.Unauthorized);
+    }
+
     [Fact]
     public async Task Authentication_registration_and_profile_permissions()
     {

@@ -625,6 +625,8 @@ ejecutan antes de este job, también en pull requests, sin GitHub Secrets.
 
 ## Pruebas automatizadas
 
+La guía [Recorrido de los mecanismos del backend](docs/recorrido-backend.md) explica la carga masiva, los bloqueos, la eliminación lógica, la auditoría y la autenticación para seguir el código.
+
 Requisitos: SDK .NET 10 y Docker con contenedores Linux para integración. No es
 necesario levantar el Compose de desarrollo ni definir credenciales locales.
 
