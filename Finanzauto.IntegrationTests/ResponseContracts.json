@@ -1,0 +1,145 @@
+{
+  "ApiErrorResponse": {
+    "description": "example",
+    "exception": "example",
+    "httpCode": 7
+  },
+  "BulkResponse\u00601": {
+    "createdCount": 7,
+    "items": [
+      7
+    ]
+  },
+  "CatalogPage\u00601": {
+    "items": [
+      7
+    ],
+    "totalCount": 7,
+    "page": 7,
+    "pageSize": 7
+  },
+  "CategoryDetailResponse": {
+    "id": 7,
+    "categoryName": "example",
+    "description": "example",
+    "picture": "AQID",
+    "pictureContentType": "example"
+  },
+  "CategoryResponse": {
+    "id": 7,
+    "categoryName": "example",
+    "description": "example",
+    "hasPicture": true
+  },
+  "GenerationResponse": {
+    "generationId": "00112233-4455-6677-8899-aabbccddeeff",
+    "createdCount": 7,
+    "categoryIds": [
+      7
+    ],
+    "supplierId": 7,
+    "elapsedMilliseconds": 9
+  },
+  "IssuedToken": {
+    "value": "example",
+    "expiresAtUtc": "2026-01-02T03:04:05Z"
+  },
+  "LoginResponse": {
+    "accessToken": "example",
+    "tokenType": "example",
+    "expiresAtUtc": "2026-01-02T03:04:05Z",
+    "user": {
+      "id": 7,
+      "firstName": "example",
+      "lastName": "example",
+      "email": "example",
+      "roleId": 7,
+      "roleName": "example",
+      "active": true
+    }
+  },
+  "PageResult\u00601": {
+    "items": [
+      7
+    ],
+    "totalCount": 7,
+    "page": 7,
+    "pageSize": 7
+  },
+  "ProductDetailResponse": {
+    "product": {
+      "id": 7,
+      "productName": "example",
+      "categoryId": 7,
+      "categoryName": "example",
+      "supplierId": 7,
+      "supplierName": "example",
+      "quantityPerUnit": "example",
+      "unitPrice": 12.34,
+      "unitsInStock": 7,
+      "unitsOnOrder": 7,
+      "reorderLevel": 7,
+      "discontinued": true
+    },
+    "category": {
+      "id": 7,
+      "categoryName": "example",
+      "description": "example",
+      "picture": "AQID",
+      "pictureContentType": "example"
+    }
+  },
+  "ProductResponse": {
+    "id": 7,
+    "productName": "example",
+    "categoryId": 7,
+    "categoryName": "example",
+    "supplierId": 7,
+    "supplierName": "example",
+    "quantityPerUnit": "example",
+    "unitPrice": 12.34,
+    "unitsInStock": 7,
+    "unitsOnOrder": 7,
+    "reorderLevel": 7,
+    "discontinued": true
+  },
+  "ProfileResponse": {
+    "id": 7,
+    "firstName": "example",
+    "lastName": "example",
+    "email": "example",
+    "birthDate": "2000-01-02",
+    "address": "example",
+    "city": "example",
+    "region": "example",
+    "postalCode": "example",
+    "country": "example",
+    "homePhone": "example",
+    "roleId": 7,
+    "roleName": "example",
+    "creationDate": "2026-01-02T03:04:05Z",
+    "updatedDate": "2026-01-02T03:04:05Z"
+  },
+  "RoleResponse": {
+    "id": 7,
+    "name": "example",
+    "active": true
+  },
+  "SessionUser": {
+    "id": 7,
+    "roleName": "example"
+  },
+  "SupplierResponse": {
+    "id": 7,
+    "companyName": "example"
+  },
+  "UserResponse": {
+    "id": 7,
+    "firstName": "example",
+    "lastName": "example",
+    "email": "example",
+    "roleId": 7,
+    "roleName": "example",
+    "active": true
+  }
+}

@@ -13,11 +13,14 @@ public sealed class ProductController(IProductGenerationService generation) : Co
     /// <summary>
     /// Genera productos de manera masiva
     /// </summary>
-    /// <param name="request"></param>
-    /// <param name="ct"></param>
+    /// <param name = "request"></param>
+    /// <param name = "ct"></param>
     /// <returns></returns>
     [HttpPost]
     [EnableRateLimiting("ProductGeneration")]
-    public async Task<ActionResult<GenerationResponse>> Generate(GenerateProductsRequest request, CancellationToken ct) =>
-        StatusCode(StatusCodes.Status201Created, await generation.GenerateAsync(request, ct));
+    public async Task<ActionResult<GenerationResponse>> Generate(GenerateProductsRequest request, CancellationToken ct)
+    {
+        var result = await generation.GenerateAsync(request, ct);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
 }

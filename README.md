@@ -15,6 +15,21 @@ temporal, ejecutadas automáticamente por GitHub Actions.
 
 ## Arquitectura
 
+Los DTOs se organizan en archivos individuales dentro de Catalog, Identity y
+Partners. Las respuestas usan clases con propiedades y se crean mediante
+asignaciones explícitas. Los controladores y servicios emplean métodos con bloques
+y variables intermedias para facilitar su lectura; conservan los constructores
+primarios para inyección de dependencias. El refactor de estilo mantiene nombres
+JSON, rutas, validaciones, permisos y consultas en base de datos.
+
+Los mapeos de clientes y proveedores cargados en memoria son métodos normales en
+`PartnerMapping`. Los listados construyen el DTO directamente dentro de `Select`
+en el repositorio, para que EF seleccione las columnas y aplique filtros, orden y
+paginación en PostgreSQL. Las asignaciones se repiten de forma explícita entre
+ambos caminos; las pruebas comparan los resultados de listado y detalle para
+evitar diferencias. El orden de productos usa un `switch` convencional y mantiene
+el ID como desempate para nombres o precios iguales.
+
 - `Finanzauto.Domain`: entidades sin dependencias de EF ni de ASP.NET.
 - `Finanzauto.Application`: casos de uso de identidad y catálogo, DTOs e interfaces.
   Depende únicamente de Domain.
@@ -166,7 +181,7 @@ Cambiar estas variables posteriormente no cambia la contraseña de una cuenta ex
 | GET | /UserAdministration/Users/{id} | JWT |
 | PUT / DELETE | /UserAdministration/Users/{id} | Admin |
 | POST | /UserAdministration/Users/{id}/Reactivate | Admin |
-| PUT | /UserAdministration/Users/ResetPassword | Admin |
+| PUT | /UserAdministration/Users/ResetPassword | Público |
 | GET | /UserAdministration/Roles | Admin |
 | POST | /UserAdministration/Roles | Admin |
 | GET | /UserAdministration/Roles/{id} | Admin |
@@ -200,7 +215,8 @@ No se devuelven PasswordHash ni entidades directamente.
 Para crear un usuario como Admin, usar el cuerpo de registro más `roleId`.
 Para editar: firstName, lastName, email y roleId; el cambio de contraseña tiene
 su propio endpoint, con `{"email":"ana@example.com","password":"NuevaClaveLocal2026!"}`.
-ResetPassword recibe opcionalmente id por query; sin id busca por correo normalizado.
+ResetPassword permite acceso anónimo para esta prueba técnica, sin JWT ni contraseña
+actual. Recibe opcionalmente id por query; sin id busca por correo normalizado.
 Para crear o renombrar un rol: `{"name":"Operador"}`.
 Los roles personalizados pueden consultar usuarios y Customers, administrar su propio
 perfil y operar Suppliers/productos/categorías; no pueden gestionar roles ni otros usuarios.
@@ -508,7 +524,7 @@ DELETE es lógico y actualiza automáticamente UpdatedDate.
 | GET de usuarios y Customers | Cualquier usuario autenticado |
 | Crear/editar/eliminar Customers, incluida carga masiva | Admin |
 | Crear administrativamente/modificar/desactivar/reactivar otros usuarios | Admin |
-| Restablecer contraseña de otro usuario | Admin |
+| Restablecer contraseña mediante Users/ResetPassword | Público |
 | Gestión de roles, incluidos GET | Admin |
 | Suppliers, productos y categorías: todas sus operaciones | Cualquier usuario autenticado |
 | GET /Profile, PUT /Profile, PUT /Profile/Password | Cualquier usuario autenticado, solo su cuenta |
@@ -546,9 +562,9 @@ PUT /Profile/Password exige JWT y la contraseña actual, sin restricción de rol
 ```
 
 Devuelve 204 si cambia, 400 si la contraseña actual es incorrecta o la nueva no
-cumple la longitud de 12-128 caracteres. No existe recuperación pública sin JWT.
-El restablecimiento de otros usuarios sigue en Users/ResetPassword, exclusivo
-de Admin. Como no hay SecurityStamp, el cambio no revoca JWT ya emitidos.
+cumple la longitud de 12-128 caracteres. El endpoint separado Users/ResetPassword
+permite restablecer por correo o id sin JWT, según el alcance acordado para la prueba.
+Como no hay SecurityStamp, el cambio no revoca JWT ya emitidos.
 
 ## Integración continua
 
@@ -643,6 +659,19 @@ una fila inválida. La carga de 100.000 productos comprueba cantidad, distribuci
 entre SERVIDORES/CLOUD, precios y auditoría; no impone un umbral de rendimiento
 dependiente del equipo. Docker no disponible hace fallar las pruebas de integración;
 no se omiten silenciosamente.
+
+`ContractCompatibilityTests` añade 16 comprobaciones de serialización contra
+`ResponseContracts.json`, capturado a partir de los DTOs anteriores al refactor.
+Comprueba los nombres y tipos JSON de las respuestas, incluidos los objetos
+anidados, las fechas, la paginación y las imágenes en base64. Estas pruebas
+complementan las de integración que comprueban los datos devueltos por la API.
+
+`QueryTests` comprueba las seis combinaciones de ordenamiento de productos,
+desempates entre páginas, filtros combinados, páginas vacías, referencias inactivas
+y coincidencia entre listado y detalle de clientes/proveedores. También captura
+los comandos ejecutados por EF para verificar que PostgreSQL recibe los filtros
+y `LIMIT/OFFSET`, con un conteo y una consulta de página, sin cargar imágenes en
+el listado de productos.
 
 ## Compose unificado: front, API y PostgreSQL
 

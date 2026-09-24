@@ -10,12 +10,18 @@ namespace Finanzauto.Controllers;
 public sealed class ProductsController(IProductService products) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<CatalogPage<ProductResponse>>> List([FromQuery] ProductQuery query, CancellationToken ct) =>
-        Ok(await products.ListAsync(query, ct));
+    public async Task<ActionResult<CatalogPage<ProductResponse>>> List([FromQuery] ProductQuery query, CancellationToken ct)
+    {
+        var result = await products.ListAsync(query, ct);
+        return Ok(result);
+    }
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<ProductDetailResponse>> Get(int id, CancellationToken ct) =>
-        Ok(await products.GetAsync(id, ct));
+    public async Task<ActionResult<ProductDetailResponse>> Get(int id, CancellationToken ct)
+    {
+        var result = await products.GetAsync(id, ct);
+        return Ok(result);
+    }
 
     [HttpPost]
     public async Task<ActionResult<ProductDetailResponse>> Create(ProductRequest request, CancellationToken ct)
@@ -25,8 +31,11 @@ public sealed class ProductsController(IProductService products) : ControllerBas
     }
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult<ProductDetailResponse>> Update(int id, ProductRequest request, CancellationToken ct) =>
-        Ok(await products.UpdateAsync(id, request, ct));
+    public async Task<ActionResult<ProductDetailResponse>> Update(int id, ProductRequest request, CancellationToken ct)
+    {
+        var result = await products.UpdateAsync(id, request, ct);
+        return Ok(result);
+    }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)

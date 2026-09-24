@@ -1,0 +1,9 @@
+namespace Finanzauto.Application.Catalog;
+
+public class CatalogPage<T>
+{
+    public IReadOnlyList<T> Items { get; set; } = null!;
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+}

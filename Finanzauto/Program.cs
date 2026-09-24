@@ -22,7 +22,12 @@ builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
             .SelectMany(entry => entry.Value!.Errors.Select(error =>
                 $"{entry.Key}: {(string.IsNullOrWhiteSpace(error.ErrorMessage) ? "El valor enviado no es válido." : error.ErrorMessage)}"));
         return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
-            new ApiErrorResponse(string.Join(" ", errors), "ValidationException", StatusCodes.Status400BadRequest));
+            new ApiErrorResponse
+            {
+                Description = string.Join(" ", errors),
+                Exception = "ValidationException",
+                HttpCode = StatusCodes.Status400BadRequest
+            });
     };
 });
 builder.Services.AddApiDocumentation();

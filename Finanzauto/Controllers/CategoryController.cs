@@ -17,16 +17,25 @@ public sealed class CategoryController(ICategoryService categories) : Controller
     }
 
     [HttpGet("Categories")]
-    public async Task<ActionResult<CatalogPage<CategoryResponse>>> List([FromQuery] CatalogQuery query, CancellationToken ct) =>
-        Ok(await categories.ListAsync(query, ct));
+    public async Task<ActionResult<CatalogPage<CategoryResponse>>> List([FromQuery] CatalogQuery query, CancellationToken ct)
+    {
+        var result = await categories.ListAsync(query, ct);
+        return Ok(result);
+    }
 
     [HttpGet("Categories/{id:int}")]
-    public async Task<ActionResult<CategoryDetailResponse>> Get(int id, CancellationToken ct) =>
-        Ok(await categories.GetAsync(id, ct));
+    public async Task<ActionResult<CategoryDetailResponse>> Get(int id, CancellationToken ct)
+    {
+        var result = await categories.GetAsync(id, ct);
+        return Ok(result);
+    }
 
     [HttpPut("Categories/{id:int}")]
-    public async Task<ActionResult<CategoryDetailResponse>> Update(int id, CategoryRequest request, CancellationToken ct) =>
-        Ok(await categories.UpdateAsync(id, request, ct));
+    public async Task<ActionResult<CategoryDetailResponse>> Update(int id, CategoryRequest request, CancellationToken ct)
+    {
+        var result = await categories.UpdateAsync(id, request, ct);
+        return Ok(result);
+    }
 
     [HttpDelete("Categories/{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)

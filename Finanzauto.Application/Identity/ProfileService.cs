@@ -4,15 +4,20 @@ namespace Finanzauto.Application.Identity;
 
 public sealed class ProfileService(IIdentityStore store, IPasswordService passwords) : IProfileService
 {
-    public async Task<ProfileResponse> GetAsync(int userId, CancellationToken ct) =>
-        Map(await RequireUserAsync(userId, ct));
+    public async Task<ProfileResponse> GetAsync(int userId, CancellationToken ct)
+    {
+        var user = await RequireUserAsync(userId, ct);
+        return Map(user);
+    }
 
     public async Task<ProfileResponse> UpdateAsync(int userId, UpdateProfileRequest request, CancellationToken ct)
     {
         var user = await RequireUserAsync(userId, ct);
         var email = request.Email.Trim();
         if (await store.EmailExistsAsync(email.ToUpperInvariant(), userId, ct))
+        {
             throw new IdentityException(409, "El correo ya está registrado.");
+        }
 
         user.FirstName = request.FirstName.Trim();
         user.LastName = request.LastName.Trim();
@@ -32,7 +37,10 @@ public sealed class ProfileService(IIdentityStore store, IPasswordService passwo
     {
         var user = await RequireUserAsync(userId, ct);
         if (!passwords.Verify(user, request.CurrentPassword))
+        {
             throw new IdentityException(400, "La contraseña actual no es correcta.");
+        }
+
         user.PasswordHash = passwords.Hash(user, request.NewPassword);
         await store.SaveAsync(ct);
     }
@@ -41,12 +49,32 @@ public sealed class ProfileService(IIdentityStore store, IPasswordService passwo
     {
         var user = await store.FindUserAsync(userId, ct);
         if (user is null || !user.Active || !user.Role.Active)
+        {
             throw new IdentityException(401, "La sesión ya no es válida.");
+        }
+
         return user;
     }
 
-    private static ProfileResponse Map(Employee user) => new(
-        user.EmployeeId, user.FirstName, user.LastName, user.Email, user.BirthDate,
-        user.Address, user.City, user.Region, user.PostalCode, user.Country, user.HomePhone,
-        user.RoleId, user.Role.Name, user.CreationDate, user.UpdatedDate);
+    private static ProfileResponse Map(Employee user)
+    {
+        return new ProfileResponse
+        {
+            Id = user.EmployeeId,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            BirthDate = user.BirthDate,
+            Address = user.Address,
+            City = user.City,
+            Region = user.Region,
+            PostalCode = user.PostalCode,
+            Country = user.Country,
+            HomePhone = user.HomePhone,
+            RoleId = user.RoleId,
+            RoleName = user.Role.Name,
+            CreationDate = user.CreationDate,
+            UpdatedDate = user.UpdatedDate
+        };
+    }
 }

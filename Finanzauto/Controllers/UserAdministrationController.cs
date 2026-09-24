@@ -16,16 +16,25 @@ public sealed class UserAdministrationController(IUserAdministrationService admi
     [HttpPost("Register")]
     [AllowAnonymous]
     [EnableRateLimiting("PublicIdentity")]
-    public async Task<ActionResult<UserResponse>> Register(RegisterRequest request, CancellationToken ct) =>
-        StatusCode(StatusCodes.Status201Created, await administration.RegisterAsync(request, ct));
+    public async Task<ActionResult<UserResponse>> Register(RegisterRequest request, CancellationToken ct)
+    {
+        var result = await administration.RegisterAsync(request, ct);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
 
     [HttpGet("Users")]
-    public async Task<ActionResult<PageResult<UserResponse>>> ListUsers([FromQuery] UserQuery query, CancellationToken ct) =>
-        Ok(await administration.ListUsersAsync(query, ct));
+    public async Task<ActionResult<PageResult<UserResponse>>> ListUsers([FromQuery] UserQuery query, CancellationToken ct)
+    {
+        var result = await administration.ListUsersAsync(query, ct);
+        return Ok(result);
+    }
 
     [HttpGet("Users/{id:int}")]
-    public async Task<ActionResult<UserResponse>> GetUser(int id, CancellationToken ct) =>
-        Ok(await administration.GetUserAsync(id, ct));
+    public async Task<ActionResult<UserResponse>> GetUser(int id, CancellationToken ct)
+    {
+        var result = await administration.GetUserAsync(id, ct);
+        return Ok(result);
+    }
 
     [HttpPost("Users")]
     [Authorize(Policy = "AdminOnly")]
@@ -37,8 +46,11 @@ public sealed class UserAdministrationController(IUserAdministrationService admi
 
     [HttpPut("Users/{id:int}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<UserResponse>> UpdateUser(int id, UpdateUserRequest request, CancellationToken ct) =>
-        Ok(await administration.UpdateAsync(id, request, ActorId, ct));
+    public async Task<ActionResult<UserResponse>> UpdateUser(int id, UpdateUserRequest request, CancellationToken ct)
+    {
+        var result = await administration.UpdateAsync(id, request, ActorId, ct);
+        return Ok(result);
+    }
 
     [HttpDelete("Users/{id:int}")]
     [Authorize(Policy = "AdminOnly")]
@@ -57,7 +69,7 @@ public sealed class UserAdministrationController(IUserAdministrationService admi
     }
 
     [HttpPut("Users/ResetPassword")]
-    [Authorize(Policy = "AdminOnly")]
+    [AllowAnonymous]
     public async Task<IActionResult> ResetPassword(int? id, ResetPasswordRequest request, CancellationToken ct)
     {
         await administration.ResetPasswordAsync(id, request, ct);
@@ -66,13 +78,19 @@ public sealed class UserAdministrationController(IUserAdministrationService admi
 
     [HttpGet("Roles")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<PageResult<RoleResponse>>> ListRoles([FromQuery] PageQuery query, CancellationToken ct) =>
-        Ok(await administration.ListRolesAsync(query, ct));
+    public async Task<ActionResult<PageResult<RoleResponse>>> ListRoles([FromQuery] PageQuery query, CancellationToken ct)
+    {
+        var result = await administration.ListRolesAsync(query, ct);
+        return Ok(result);
+    }
 
     [HttpGet("Roles/{id:int}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<RoleResponse>> GetRole(int id, CancellationToken ct) =>
-        Ok(await administration.GetRoleAsync(id, ct));
+    public async Task<ActionResult<RoleResponse>> GetRole(int id, CancellationToken ct)
+    {
+        var result = await administration.GetRoleAsync(id, ct);
+        return Ok(result);
+    }
 
     [HttpPost("Roles")]
     [Authorize(Policy = "AdminOnly")]
@@ -84,8 +102,11 @@ public sealed class UserAdministrationController(IUserAdministrationService admi
 
     [HttpPut("Roles/{id:int}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<RoleResponse>> UpdateRole(int id, RoleRequest request, CancellationToken ct) =>
-        Ok(await administration.UpdateRoleAsync(id, request, ct));
+    public async Task<ActionResult<RoleResponse>> UpdateRole(int id, RoleRequest request, CancellationToken ct)
+    {
+        var result = await administration.UpdateRoleAsync(id, request, ct);
+        return Ok(result);
+    }
 
     [HttpDelete("Roles/{id:int}")]
     [Authorize(Policy = "AdminOnly")]

@@ -31,9 +31,36 @@ public sealed class PartnerStore(FinanzautoDbContext db) : IPartnerStore
             rows = rows.Where(x => x.City != null && x.City.ToUpper() == city);
         }
         var total = await rows.CountAsync(ct);
-        var items = await rows.OrderBy(x => x.SupplierId).Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize).Select(PartnerMapping.SupplierProjection).ToListAsync(ct);
-        return new(items, total, query.Page, query.PageSize);
+        var offset = (query.Page - 1) * query.PageSize;
+        var items = await rows
+            .OrderBy(x => x.SupplierId)
+            .Skip(offset)
+            .Take(query.PageSize)
+            .Select(x => new SupplierDetailResponse
+            {
+                Id = x.SupplierId,
+                CompanyName = x.CompanyName,
+                ContactName = x.ContactName,
+                ContactTitle = x.ContactTitle,
+                Address = x.Address,
+                City = x.City,
+                Region = x.Region,
+                PostalCode = x.PostalCode,
+                Country = x.Country,
+                Phone = x.Phone,
+                Fax = x.Fax,
+                HomePage = x.HomePage,
+                CreationDate = x.CreationDate,
+                UpdatedDate = x.UpdatedDate
+            })
+            .ToListAsync(ct);
+        return new CatalogPage<SupplierDetailResponse>
+        {
+            Items = items,
+            TotalCount = total,
+            Page = query.Page,
+            PageSize = query.PageSize
+        };
     }
 
     public async Task<CatalogPage<CustomerResponse>> ListCustomersAsync(PartnerQuery query, CancellationToken ct)
@@ -56,9 +83,35 @@ public sealed class PartnerStore(FinanzautoDbContext db) : IPartnerStore
             rows = rows.Where(x => x.City != null && x.City.ToUpper() == city);
         }
         var total = await rows.CountAsync(ct);
-        var items = await rows.OrderBy(x => x.CustomerId).Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize).Select(PartnerMapping.CustomerProjection).ToListAsync(ct);
-        return new(items, total, query.Page, query.PageSize);
+        var offset = (query.Page - 1) * query.PageSize;
+        var items = await rows
+            .OrderBy(x => x.CustomerId)
+            .Skip(offset)
+            .Take(query.PageSize)
+            .Select(x => new CustomerResponse
+            {
+                Id = x.CustomerId,
+                CompanyName = x.CompanyName,
+                ContactName = x.ContactName,
+                ContactTitle = x.ContactTitle,
+                Address = x.Address,
+                City = x.City,
+                Region = x.Region,
+                PostalCode = x.PostalCode,
+                Country = x.Country,
+                Phone = x.Phone,
+                Fax = x.Fax,
+                CreationDate = x.CreationDate,
+                UpdatedDate = x.UpdatedDate
+            })
+            .ToListAsync(ct);
+        return new CatalogPage<CustomerResponse>
+        {
+            Items = items,
+            TotalCount = total,
+            Page = query.Page,
+            PageSize = query.PageSize
+        };
     }
     public Task<Supplier?> FindSupplierAsync(int id, CancellationToken ct) =>
         db.Suppliers.SingleOrDefaultAsync(x => x.SupplierId == id, ct);

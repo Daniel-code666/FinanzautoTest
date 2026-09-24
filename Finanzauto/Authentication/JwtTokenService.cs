@@ -25,6 +25,10 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options, TimeProvider t
             notBefore: now, expires: expires,
             signingCredentials: new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(settings.SigningKey)), SecurityAlgorithms.HmacSha256));
-        return new(new JwtSecurityTokenHandler().WriteToken(token), expires);
+        return new IssuedToken
+        {
+            Value = new JwtSecurityTokenHandler().WriteToken(token),
+            ExpiresAtUtc = expires
+        };
     }
 }

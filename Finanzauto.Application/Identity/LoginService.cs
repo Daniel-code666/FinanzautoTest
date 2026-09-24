@@ -6,10 +6,17 @@ public sealed class LoginService(IIdentityStore store, IPasswordService password
     {
         var user = await store.FindByEmailAsync(request.Email.Trim().ToUpperInvariant(), ct);
         if (user is null || !passwords.Verify(user, request.Password) || !user.Active || !user.Role.Active)
+        {
             throw new IdentityException(401, "Credenciales inválidas.");
+        }
 
         var token = tokens.Issue(user);
-        return new LoginResponse(token.Value, "Bearer", token.ExpiresAtUtc, user.ToResponse());
+        return new LoginResponse
+        {
+            AccessToken = token.Value,
+            TokenType = "Bearer",
+            ExpiresAtUtc = token.ExpiresAtUtc,
+            User = user.ToResponse()
+        };
     }
 }
-

@@ -89,8 +89,6 @@ public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
             await Error(await client.PutAsJsonAsync($"/UserAdministration/Users/{user.Id}",
                 new { firstName = "A", lastName = "B", email = user.Email, roleId = 1 }), HttpStatusCode.Forbidden);
             await Error(await client.DeleteAsync($"/UserAdministration/Users/{user.Id}"), HttpStatusCode.Forbidden);
-            await Error(await client.PutAsJsonAsync("/UserAdministration/Users/ResetPassword",
-                new { email = user.Email, password = Factory.Password }), HttpStatusCode.Forbidden);
             await Error(await client.GetAsync("/UserAdministration/Roles"), HttpStatusCode.Forbidden);
             await Error(await client.GetAsync("/UserAdministration/Roles/1"), HttpStatusCode.Forbidden);
             await Error(await client.PostAsJsonAsync("/UserAdministration/Roles", new { name = "Other" }), HttpStatusCode.Forbidden);
@@ -101,6 +99,28 @@ public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
             Assert.Equal(HttpStatusCode.NoContent, (await Admin.DeleteAsync("/Customers/C1")).StatusCode);
             await using var db = Db();
             Assert.False((await db.Customers.IgnoreQueryFilters().SingleAsync(c => c.CustomerId == customer.Id)).Active);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Anonymous_password_reset_accepts_email_or_id_and_changes_login(bool useId)
+    {
+        var (client, user) = await Register();
+        using (client)
+        {
+            Assert.Null(Anonymous.DefaultRequestHeaders.Authorization);
+            var path = "/UserAdministration/Users/ResetPassword";
+            if (useId) path += $"?id={user.Id}";
+            var newPassword = "AnonymousResetPassword2026!";
+            using var response = await Anonymous.PutAsJsonAsync(path, new { email = user.Email, password = newPassword });
+            Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+            await Error(await Anonymous.PostAsJsonAsync("/Login",
+                new { email = user.Email, password = Factory.Password }), HttpStatusCode.Unauthorized);
+            using var newSession = await Login(user.Email, newPassword);
+            var profile = (await newSession.GetFromJsonAsync<ProfileResponse>("/Profile"))!;
+            Assert.Equal(user.Id, profile.Id);
         }
     }
 

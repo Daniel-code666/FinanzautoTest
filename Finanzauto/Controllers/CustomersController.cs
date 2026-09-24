@@ -13,12 +13,18 @@ namespace Finanzauto.Controllers;
 public sealed class CustomersController(IPartnerService partners) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<CatalogPage<CustomerResponse>>> List([FromQuery] PartnerQuery query, CancellationToken ct) =>
-        Ok(await partners.ListCustomersAsync(query, ct));
+    public async Task<ActionResult<CatalogPage<CustomerResponse>>> List([FromQuery] PartnerQuery query, CancellationToken ct)
+    {
+        var result = await partners.ListCustomersAsync(query, ct);
+        return Ok(result);
+    }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<CustomerResponse>> Get(string id, CancellationToken ct) =>
-        Ok(await partners.GetCustomerAsync(id, ct));
+    public async Task<ActionResult<CustomerResponse>> Get(string id, CancellationToken ct)
+    {
+        var result = await partners.GetCustomerAsync(id, ct);
+        return Ok(result);
+    }
 
     [HttpPost]
     [Authorize(Policy = "AdminOnly")]
@@ -30,14 +36,19 @@ public sealed class CustomersController(IPartnerService partners) : ControllerBa
 
     [HttpPost("Bulk")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<BulkResponse<CustomerResponse>>> CreateBulk(
-        [FromBody, Required, MinLength(1), MaxLength(1000)] CustomerRequest[] requests, CancellationToken ct) =>
-        StatusCode(StatusCodes.Status201Created, await partners.CreateCustomersAsync(requests, ct));
+    public async Task<ActionResult<BulkResponse<CustomerResponse>>> CreateBulk([FromBody, Required, MinLength(1), MaxLength(1000)] CustomerRequest[] requests, CancellationToken ct)
+    {
+        var result = await partners.CreateCustomersAsync(requests, ct);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
 
     [HttpPut("{id}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<CustomerResponse>> Update(string id, ContactRequest request, CancellationToken ct) =>
-        Ok(await partners.UpdateCustomerAsync(id, request, ct));
+    public async Task<ActionResult<CustomerResponse>> Update(string id, ContactRequest request, CancellationToken ct)
+    {
+        var result = await partners.UpdateCustomerAsync(id, request, ct);
+        return Ok(result);
+    }
 
     [HttpDelete("{id}")]
     [Authorize(Policy = "AdminOnly")]
@@ -47,4 +58,3 @@ public sealed class CustomersController(IPartnerService partners) : ControllerBa
         return NoContent();
     }
 }
-

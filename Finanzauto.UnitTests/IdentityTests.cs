@@ -24,7 +24,11 @@ public class IdentityTests
         var user = User();
         store.Setup(s => s.FindByEmailAsync("USER@EXAMPLE.TEST", default)).ReturnsAsync(user);
         passwords.Setup(p => p.Verify(user, "password")).Returns(true);
-        var issued = new IssuedToken("signed-token", DateTime.UtcNow.AddMinutes(10));
+        var issued = new IssuedToken
+        {
+            Value = "signed-token",
+            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(10)
+        };
         tokens.Setup(t => t.Issue(user)).Returns(issued);
         var result = await new LoginService(store.Object, passwords.Object, tokens.Object)
             .LoginAsync(new() { Email = " user@example.test ", Password = "password" }, default);

@@ -1,4 +1,3 @@
-using System.Linq.Expressions;
 using Finanzauto.Application.Catalog;
 using Finanzauto.Application.Common.Exceptions;
 using Finanzauto.Domain.Entities;
@@ -10,54 +9,142 @@ namespace Finanzauto.Infrastructure.Catalog;
 
 public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
 {
-    private static readonly Expression<Func<Product, ProductResponse>> ProductProjection = x => new(
-        x.ProductId, x.ProductName, x.CategoryId, x.Category.CategoryName,
-        x.SupplierId, x.Supplier.CompanyName, x.QuantityPerUnit, x.UnitPrice,
-        x.UnitsInStock, x.UnitsOnOrder, x.ReorderLevel, x.Discontinued);
-
     // El predicado explícito mantiene el mismo conjunto en Count, página y detalle,
     // incluso si una referencia se desactiva directamente en DBeaver.
-    private IQueryable<Product> VisibleProducts() => db.Products.AsNoTracking()
-        .Where(x => x.Category.Active && x.Supplier.Active);
+    private IQueryable<Product> VisibleProducts() => db.Products.AsNoTracking().Where(x => x.Category.Active && x.Supplier.Active);
 
     public async Task<CatalogPage<ProductResponse>> ListProductsAsync(ProductQuery query, CancellationToken ct)
     {
         var products = VisibleProducts();
-        if (query.CategoryId.HasValue) products = products.Where(x => x.CategoryId == query.CategoryId);
-        if (query.SupplierId.HasValue) products = products.Where(x => x.SupplierId == query.SupplierId);
-        if (query.MinPrice.HasValue) products = products.Where(x => x.UnitPrice >= query.MinPrice);
-        if (query.MaxPrice.HasValue) products = products.Where(x => x.UnitPrice <= query.MaxPrice);
-        if (query.Discontinued.HasValue) products = products.Where(x => x.Discontinued == query.Discontinued);
+        if (query.CategoryId.HasValue)
+        {
+            products = products.Where(x => x.CategoryId == query.CategoryId);
+        }
+        if (query.SupplierId.HasValue)
+        {
+            products = products.Where(x => x.SupplierId == query.SupplierId);
+        }
+        if (query.MinPrice.HasValue)
+        {
+            products = products.Where(x => x.UnitPrice >= query.MinPrice);
+        }
+        if (query.MaxPrice.HasValue)
+        {
+            products = products.Where(x => x.UnitPrice <= query.MaxPrice);
+        }
+        if (query.Discontinued.HasValue)
+        {
+            products = products.Where(x => x.Discontinued == query.Discontinued);
+        }
         if (query.InStock.HasValue)
-            products = query.InStock.Value ? products.Where(x => x.UnitsInStock > 0) : products.Where(x => x.UnitsInStock == 0);
+        {
+            if (query.InStock.Value)
+            {
+                products = products.Where(x => x.UnitsInStock > 0);
+            }
+            else
+            {
+                products = products.Where(x => x.UnitsInStock == 0);
+            }
+        }
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var term = query.Search.Trim().ToUpperInvariant();
             products = products.Where(x => EF.Property<string>(x, "SearchName").Contains(term));
         }
         var total = await products.CountAsync(ct);
-        IOrderedQueryable<Product> ordered = (query.SortBy, query.Descending) switch
+        IOrderedQueryable<Product> ordered;
+        switch (query.SortBy)
         {
-            (ProductSort.Name, false) => products.OrderBy(x => x.ProductName).ThenBy(x => x.ProductId),
-            (ProductSort.Name, true) => products.OrderByDescending(x => x.ProductName).ThenByDescending(x => x.ProductId),
-            (ProductSort.Price, false) => products.OrderBy(x => x.UnitPrice).ThenBy(x => x.ProductId),
-            (ProductSort.Price, true) => products.OrderByDescending(x => x.UnitPrice).ThenByDescending(x => x.ProductId),
-            (_, true) => products.OrderByDescending(x => x.ProductId),
-            _ => products.OrderBy(x => x.ProductId)
+            case ProductSort.Name:
+                if (query.Descending)
+                {
+                    ordered = products.OrderByDescending(x => x.ProductName).ThenByDescending(x => x.ProductId);
+                }
+                else
+                {
+                    ordered = products.OrderBy(x => x.ProductName).ThenBy(x => x.ProductId);
+                }
+                break;
+            case ProductSort.Price:
+                if (query.Descending)
+                {
+                    ordered = products.OrderByDescending(x => x.UnitPrice).ThenByDescending(x => x.ProductId);
+                }
+                else
+                {
+                    ordered = products.OrderBy(x => x.UnitPrice).ThenBy(x => x.ProductId);
+                }
+                break;
+            default:
+                if (query.Descending)
+                {
+                    ordered = products.OrderByDescending(x => x.ProductId);
+                }
+                else
+                {
+                    ordered = products.OrderBy(x => x.ProductId);
+                }
+                break;
+        }
+
+        var offset = (query.Page - 1) * query.PageSize;
+        var items = await ordered
+            .Skip(offset)
+            .Take(query.PageSize)
+            .Select(x => new ProductResponse
+            {
+                Id = x.ProductId,
+                ProductName = x.ProductName,
+                CategoryId = x.CategoryId,
+                CategoryName = x.Category.CategoryName,
+                SupplierId = x.SupplierId,
+                SupplierName = x.Supplier.CompanyName,
+                QuantityPerUnit = x.QuantityPerUnit,
+                UnitPrice = x.UnitPrice,
+                UnitsInStock = x.UnitsInStock,
+                UnitsOnOrder = x.UnitsOnOrder,
+                ReorderLevel = x.ReorderLevel,
+                Discontinued = x.Discontinued
+            })
+            .ToListAsync(ct);
+        return new CatalogPage<ProductResponse>
+        {
+            Items = items,
+            TotalCount = total,
+            Page = query.Page,
+            PageSize = query.PageSize
         };
-        var items = await ordered.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
-            .Select(ProductProjection).ToListAsync(ct);
-        return new(items, total, query.Page, query.PageSize);
     }
 
     public Task<ProductDetailResponse?> GetProductAsync(int id, CancellationToken ct) =>
         VisibleProducts().Where(x => x.ProductId == id)
-            .Select(x => new ProductDetailResponse(
-                new ProductResponse(x.ProductId, x.ProductName, x.CategoryId, x.Category.CategoryName,
-                    x.SupplierId, x.Supplier.CompanyName, x.QuantityPerUnit, x.UnitPrice, x.UnitsInStock,
-                    x.UnitsOnOrder, x.ReorderLevel, x.Discontinued),
-                new CategoryDetailResponse(x.CategoryId, x.Category.CategoryName, x.Category.Description,
-                    x.Category.Picture, x.Category.PictureContentType))).SingleOrDefaultAsync(ct);
+            .Select(x => new ProductDetailResponse
+            {
+                Product = new ProductResponse
+                {
+                    Id = x.ProductId,
+                    ProductName = x.ProductName,
+                    CategoryId = x.CategoryId,
+                    CategoryName = x.Category.CategoryName,
+                    SupplierId = x.SupplierId,
+                    SupplierName = x.Supplier.CompanyName,
+                    QuantityPerUnit = x.QuantityPerUnit,
+                    UnitPrice = x.UnitPrice,
+                    UnitsInStock = x.UnitsInStock,
+                    UnitsOnOrder = x.UnitsOnOrder,
+                    ReorderLevel = x.ReorderLevel,
+                    Discontinued = x.Discontinued
+                },
+                Category = new CategoryDetailResponse
+                {
+                    Id = x.CategoryId,
+                    CategoryName = x.Category.CategoryName,
+                    Description = x.Category.Description,
+                    Picture = x.Category.Picture,
+                    PictureContentType = x.Category.PictureContentType
+                }
+            }).SingleOrDefaultAsync(ct);
 
     public async Task<int> SaveProductAsync(int? id, Product product, CancellationToken ct)
     {
@@ -104,16 +191,38 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
             categories = categories.Where(x => x.CategoryName.ToUpper().Contains(term));
         }
         var total = await categories.CountAsync(ct);
-        var items = await categories.OrderBy(x => x.CategoryId).Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize).Select(x => new CategoryResponse(x.CategoryId, x.CategoryName,
-                x.Description, x.Picture != null)).ToListAsync(ct);
-        return new(items, total, query.Page, query.PageSize);
+        var offset = (query.Page - 1) * query.PageSize;
+        var items = await categories
+            .OrderBy(x => x.CategoryId)
+            .Skip(offset)
+            .Take(query.PageSize)
+            .Select(x => new CategoryResponse
+            {
+                Id = x.CategoryId,
+                CategoryName = x.CategoryName,
+                Description = x.Description,
+                HasPicture = x.Picture != null
+            })
+            .ToListAsync(ct);
+        return new CatalogPage<CategoryResponse>
+        {
+            Items = items,
+            TotalCount = total,
+            Page = query.Page,
+            PageSize = query.PageSize
+        };
     }
 
     public Task<CategoryDetailResponse?> GetCategoryAsync(int id, CancellationToken ct) =>
         db.Categories.AsNoTracking().Where(x => x.CategoryId == id)
-            .Select(x => new CategoryDetailResponse(x.CategoryId, x.CategoryName, x.Description,
-                x.Picture, x.PictureContentType)).SingleOrDefaultAsync(ct);
+            .Select(x => new CategoryDetailResponse
+            {
+                Id = x.CategoryId,
+                CategoryName = x.CategoryName,
+                Description = x.Description,
+                Picture = x.Picture,
+                PictureContentType = x.PictureContentType
+            }).SingleOrDefaultAsync(ct);
 
     public async Task<int> SaveCategoryAsync(int? id, Category category, CancellationToken ct)
     {
@@ -168,9 +277,24 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
             suppliers = suppliers.Where(x => x.CompanyName.ToUpper().Contains(term));
         }
         var total = await suppliers.CountAsync(ct);
-        var items = await suppliers.OrderBy(x => x.SupplierId).Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize).Select(x => new SupplierResponse(x.SupplierId, x.CompanyName)).ToListAsync(ct);
-        return new(items, total, query.Page, query.PageSize);
+        var offset = (query.Page - 1) * query.PageSize;
+        var items = await suppliers
+            .OrderBy(x => x.SupplierId)
+            .Skip(offset)
+            .Take(query.PageSize)
+            .Select(x => new SupplierResponse
+            {
+                Id = x.SupplierId,
+                CompanyName = x.CompanyName
+            })
+            .ToListAsync(ct);
+        return new CatalogPage<SupplierResponse>
+        {
+            Items = items,
+            TotalCount = total,
+            Page = query.Page,
+            PageSize = query.PageSize
+        };
     }
 
     private async Task SaveAsync(CancellationToken ct)

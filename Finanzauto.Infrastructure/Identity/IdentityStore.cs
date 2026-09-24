@@ -41,9 +41,23 @@ public sealed class IdentityStore(FinanzautoDbContext db) : IIdentityStore
         var total = await users.CountAsync(ct);
         var items = await users.OrderBy(x => x.EmployeeId)
             .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
-            .Select(x => new UserResponse(x.EmployeeId, x.FirstName, x.LastName, x.Email,
-                x.RoleId, x.Role.Name, x.Active)).ToListAsync(ct);
-        return new(items, total, query.Page, query.PageSize);
+            .Select(x => new UserResponse
+            {
+                Id = x.EmployeeId,
+                FirstName = x.FirstName,
+                LastName = x.LastName,
+                Email = x.Email,
+                RoleId = x.RoleId,
+                RoleName = x.Role.Name,
+                Active = x.Active
+            }).ToListAsync(ct);
+        return new PageResult<UserResponse>
+        {
+            Items = items,
+            TotalCount = total,
+            Page = query.Page,
+            PageSize = query.PageSize
+        };
     }
 
     public async Task<PageResult<RoleResponse>> ListRolesAsync(PageQuery query, CancellationToken ct)
@@ -58,14 +72,29 @@ public sealed class IdentityStore(FinanzautoDbContext db) : IIdentityStore
         var total = await roles.CountAsync(ct);
         var items = await roles.OrderBy(x => x.RoleId)
             .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
-            .Select(x => new RoleResponse(x.RoleId, x.Name, x.Active)).ToListAsync(ct);
-        return new(items, total, query.Page, query.PageSize);
+            .Select(x => new RoleResponse
+            {
+                Id = x.RoleId,
+                Name = x.Name,
+                Active = x.Active
+            }).ToListAsync(ct);
+        return new PageResult<RoleResponse>
+        {
+            Items = items,
+            TotalCount = total,
+            Page = query.Page,
+            PageSize = query.PageSize
+        };
     }
 
     public Task<SessionUser?> GetSessionAsync(int id, CancellationToken ct) =>
         db.Employees.IgnoreQueryFilters().AsNoTracking()
             .Where(x => x.EmployeeId == id && x.Active && x.Role.Active)
-            .Select(x => new SessionUser(x.EmployeeId, x.Role.Name))
+            .Select(x => new SessionUser
+            {
+                Id = x.EmployeeId,
+                RoleName = x.Role.Name
+            })
             .SingleOrDefaultAsync(ct);
 
     public void AddUser(Employee employee) => db.Employees.Add(employee);

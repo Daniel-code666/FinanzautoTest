@@ -18,8 +18,12 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
                 string.IsNullOrEmpty(context.Response.ContentType))
             {
                 var code = context.Response.StatusCode;
-                await WriteAsync(context, new ApiErrorResponse(
-                    ReasonPhrases.GetReasonPhrase(code), "HttpError", code));
+                await WriteAsync(context, new ApiErrorResponse
+                {
+                    Description = ReasonPhrases.GetReasonPhrase(code),
+                    Exception = "HttpError",
+                    HttpCode = code
+                });
             }
         }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
@@ -46,7 +50,12 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
                 : "Ocurrió un error interno al procesar la solicitud.";
 
             context.Response.Clear();
-            await WriteAsync(context, new ApiErrorResponse(description, exception.GetType().Name, code));
+            await WriteAsync(context, new ApiErrorResponse
+            {
+                Description = description,
+                Exception = exception.GetType().Name,
+                HttpCode = code
+            });
         }
     }
 

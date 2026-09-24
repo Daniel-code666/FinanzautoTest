@@ -7,18 +7,60 @@ namespace Finanzauto.Application.Partners;
 
 public sealed class PartnerService(IPartnerStore store) : IPartnerService
 {
-    public Task<CatalogPage<SupplierDetailResponse>> ListSuppliersAsync(PartnerQuery query, CancellationToken ct) => store.ListSuppliersAsync(query, ct);
-    public Task<CatalogPage<CustomerResponse>> ListCustomersAsync(PartnerQuery query, CancellationToken ct) => store.ListCustomersAsync(query, ct);
-    private async Task<Supplier> SupplierAsync(int id, CancellationToken ct) =>
-        await store.FindSupplierAsync(id, ct) ?? throw new ApiException(404, "Proveedor no encontrado.");
-    private async Task<Customer> CustomerAsync(string id, CancellationToken ct) =>
-        await store.FindCustomerAsync(id.Trim().ToUpperInvariant(), ct) ?? throw new ApiException(404, "Cliente no encontrado.");
-    public async Task<SupplierDetailResponse> GetSupplierAsync(int id, CancellationToken ct) => (await SupplierAsync(id, ct)).ToResponse();
-    public async Task<CustomerResponse> GetCustomerAsync(string id, CancellationToken ct) => (await CustomerAsync(id, ct)).ToResponse();
-    public async Task<SupplierDetailResponse> CreateSupplierAsync(SupplierRequest request, CancellationToken ct) =>
-        (await CreateSuppliersAsync([request], ct)).Items[0];
-    public async Task<CustomerResponse> CreateCustomerAsync(CustomerRequest request, CancellationToken ct) =>
-        (await CreateCustomersAsync([request], ct)).Items[0];
+    public Task<CatalogPage<SupplierDetailResponse>> ListSuppliersAsync(PartnerQuery query, CancellationToken ct)
+    {
+        return store.ListSuppliersAsync(query, ct);
+    }
+
+    public Task<CatalogPage<CustomerResponse>> ListCustomersAsync(PartnerQuery query, CancellationToken ct)
+    {
+        return store.ListCustomersAsync(query, ct);
+    }
+
+    private async Task<Supplier> SupplierAsync(int id, CancellationToken ct)
+    {
+        var supplier = await store.FindSupplierAsync(id, ct);
+        if (supplier == null)
+        {
+            throw new ApiException(404, "Proveedor no encontrado.");
+        }
+        return supplier;
+    }
+
+    private async Task<Customer> CustomerAsync(string id, CancellationToken ct)
+    {
+        var customer = await store.FindCustomerAsync(id.Trim().ToUpperInvariant(), ct);
+        if (customer == null)
+        {
+            throw new ApiException(404, "Cliente no encontrado.");
+        }
+        return customer;
+    }
+
+    public async Task<SupplierDetailResponse> GetSupplierAsync(int id, CancellationToken ct)
+    {
+        var supplier = await SupplierAsync(id, ct);
+        return supplier.ToResponse();
+    }
+
+    public async Task<CustomerResponse> GetCustomerAsync(string id, CancellationToken ct)
+    {
+        var customer = await CustomerAsync(id, ct);
+        return customer.ToResponse();
+    }
+
+    public async Task<SupplierDetailResponse> CreateSupplierAsync(SupplierRequest request, CancellationToken ct)
+    {
+        var result = await CreateSuppliersAsync(new[] { request }, ct);
+        return result.Items[0];
+    }
+
+    public async Task<CustomerResponse> CreateCustomerAsync(CustomerRequest request, CancellationToken ct)
+    {
+        var result = await CreateCustomersAsync(new[] { request }, ct);
+        return result.Items[0];
+    }
+
     public async Task<SupplierDetailResponse> UpdateSupplierAsync(int id, SupplierRequest request, CancellationToken ct)
     {
         var entity = await SupplierAsync(id, ct);
@@ -26,6 +68,7 @@ public sealed class PartnerService(IPartnerStore store) : IPartnerService
         await store.SaveAsync(ct);
         return entity.ToResponse();
     }
+
     public async Task<CustomerResponse> UpdateCustomerAsync(string id, ContactRequest request, CancellationToken ct)
     {
         var entity = await CustomerAsync(id, ct);
@@ -33,8 +76,17 @@ public sealed class PartnerService(IPartnerStore store) : IPartnerService
         await store.SaveAsync(ct);
         return entity.ToResponse();
     }
-    public Task DeleteSupplierAsync(int id, CancellationToken ct) => store.DeleteSupplierAsync(id, ct);
-    public Task DeleteCustomerAsync(string id, CancellationToken ct) => store.DeleteCustomerAsync(id.Trim().ToUpperInvariant(), ct);
+
+    public Task DeleteSupplierAsync(int id, CancellationToken ct)
+    {
+        return store.DeleteSupplierAsync(id, ct);
+    }
+
+    public Task DeleteCustomerAsync(string id, CancellationToken ct)
+    {
+        return store.DeleteCustomerAsync(id.Trim().ToUpperInvariant(), ct);
+    }
+
     public async Task<BulkResponse<SupplierDetailResponse>> CreateSuppliersAsync(SupplierRequest[] requests, CancellationToken ct)
     {
         ValidateBatch(requests);
@@ -45,34 +97,58 @@ public sealed class PartnerService(IPartnerStore store) : IPartnerService
             return entity;
         }).ToArray();
         await store.AddSuppliersAsync(entities, ct);
-        return new(entities.Length, entities.Select(x => x.ToResponse()).ToArray());
+        return new BulkResponse<SupplierDetailResponse>
+        {
+            CreatedCount = entities.Length,
+            Items = entities.Select(x => x.ToResponse()).ToArray()
+        };
     }
+
     public async Task<BulkResponse<CustomerResponse>> CreateCustomersAsync(CustomerRequest[] requests, CancellationToken ct)
     {
         ValidateBatch(requests);
         var entities = requests.Select(request =>
         {
-            var entity = new Customer { CustomerId = request.CustomerId.Trim().ToUpperInvariant() };
+            var entity = new Customer
+            {
+                CustomerId = request.CustomerId.Trim().ToUpperInvariant()
+            };
             PartnerMapping.Apply(entity, request);
             return entity;
         }).ToArray();
         if (entities.Select(x => x.CustomerId).Distinct().Count() != entities.Length)
+        {
             throw new ApiException(409, "El lote contiene códigos de cliente duplicados.");
+        }
+
         await store.AddCustomersAsync(entities, ct);
-        return new(entities.Length, entities.Select(x => x.ToResponse()).ToArray());
+        return new BulkResponse<CustomerResponse>
+        {
+            CreatedCount = entities.Length,
+            Items = entities.Select(x => x.ToResponse()).ToArray()
+        };
     }
+
     private static void ValidateBatch<T>(T[] requests)
     {
-        if (requests is null || requests.Length is < 1 or > 1000)
+        if (requests == null || requests.Length < 1 || requests.Length > 1000)
+        {
             throw new ApiException(400, "El arreglo debe contener entre 1 y 1000 objetos.");
+        }
+
         for (var i = 0; i < requests.Length; i++)
         {
             var request = requests[i];
-            if (request is null) throw new ApiException(400, $"El objeto en la posición {i} es nulo.");
+            if (request is null)
+            {
+                throw new ApiException(400, $"El objeto en la posición {i} es nulo.");
+            }
+
             var errors = new List<ValidationResult>();
             if (!Validator.TryValidateObject(request, new ValidationContext(request), errors, true))
+            {
                 throw new ApiException(400, $"Objeto {i}: {string.Join(" ", errors.Select(x => x.ErrorMessage))}");
+            }
         }
     }
 }
-

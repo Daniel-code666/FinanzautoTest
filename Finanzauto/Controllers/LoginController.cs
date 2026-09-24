@@ -17,6 +17,7 @@ public sealed class LoginController(ILoginService login) : ControllerBase
     [ProducesResponseType<ApiErrorResponse>(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<LoginResponse>> Post(LoginRequest request, CancellationToken ct)
     {
-        return Ok(await login.LoginAsync(request, ct));
+        var result = await login.LoginAsync(request, ct);
+        return Ok(result);
     }
 }
