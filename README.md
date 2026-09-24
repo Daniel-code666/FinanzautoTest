@@ -571,9 +571,37 @@ docker build --file Finanzauto/Dockerfile --tag finanzauto-api:ci .
 ```
 
 Si falla el formato, ejecutar `dotnet format Finanzauto.slnx --no-restore` y revisar
-los cambios antes de subirlos. Esta etapa no requiere secrets ni publica o
-despliega la imagen. Quedan pendientes la verificación temporal de API y base de
-datos con GitHub Secrets y la ejecución de pruebas cuando se agreguen sus proyectos.
+los cambios antes de subirlos. El job `build` no requiere secrets.
+
+Después de `build`, el job `smoke` se ejecuta solamente en pushes a `main` y
+ejecuciones manuales sobre `main`. Los pull requests ejecutan únicamente `build`.
+Configurar en **Settings > Secrets and variables > Actions**:
+
+| Tipo | Nombre | Requisito |
+| --- | --- | --- |
+| Secret | `CI_POSTGRES_PASSWORD` | Contraseña de la base temporal |
+| Secret | `CI_JWT_SIGNING_KEY` | Clave aleatoria de al menos 32 bytes |
+| Secret | `CI_BOOTSTRAP_ADMIN_PASSWORD` | Contraseña de 12 a 128 caracteres |
+| Variable | `CI_BOOTSTRAP_ADMIN_EMAIL` | Correo válido del administrador temporal |
+
+Los valores se pasan por variables de entorno siguiendo la
+[documentación de GitHub Secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
+Si falta alguno, la verificación falla e indica su nombre sin revelar valores.
+
+`compose.ci.yml` y `.github/scripts/smoke.py` construyen la API y levantan PostgreSQL
+17 en el proyecto aislado `finanzauto-ci`, aplican migraciones sobre una base vacía
+y crean el administrador. Comprueban `/health`, rechazo de `/Profile` sin JWT
+(401), login y consulta del perfil con JWT (200 y rol Admin). El puerto HTTP es
+dinámico y PostgreSQL no publica puerto. No se lee el `.env` local ni se inicia el
+frontend. Al finalizar, incluso si una comprobación falla, se eliminan los
+contenedores, red y volumen temporales; el workflow repite la limpieza con
+`always()`. No se imprimen tokens, respuestas de login ni logs de contenedores.
+
+Para reproducir este paso, definir las cuatro variables de entorno anteriores y
+ejecutar `python .github/scripts/smoke.py` desde la raíz con Docker disponible.
+Reservar el nombre de proyecto `finanzauto-ci` para esta verificación desechable.
+Este pipeline no publica imágenes ni realiza despliegues. Las pruebas xUnit siguen
+pendientes y serán una validación adicional a estas comprobaciones de arranque.
 
 ## Compose unificado: front, API y PostgreSQL
 

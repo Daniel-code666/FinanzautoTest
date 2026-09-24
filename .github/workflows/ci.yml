@@ -40,3 +40,27 @@ jobs:
 
       - name: Construir imagen de la API
         run: docker build --file Finanzauto/Dockerfile --tag finanzauto-api:ci .
+
+  smoke:
+    name: API y PostgreSQL con secrets
+    needs: build
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI_POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+      CI_JWT_SIGNING_KEY: ${{ secrets.CI_JWT_SIGNING_KEY }}
+      CI_BOOTSTRAP_ADMIN_PASSWORD: ${{ secrets.CI_BOOTSTRAP_ADMIN_PASSWORD }}
+      CI_BOOTSTRAP_ADMIN_EMAIL: ${{ vars.CI_BOOTSTRAP_ADMIN_EMAIL }}
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Verificar arranque, login y JWT
+        run: python3 .github/scripts/smoke.py
+
+      - name: Eliminar entorno temporal
+        if: always()
+        run: docker compose --env-file /dev/null -f compose.ci.yml -p finanzauto-ci down --volumes --remove-orphans

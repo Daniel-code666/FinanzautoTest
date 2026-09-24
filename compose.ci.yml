@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: finanzauto_ci
+      POSTGRES_USER: finanzauto_ci
+      POSTGRES_PASSWORD: ${CI_POSTGRES_PASSWORD}
+    volumes:
+      - ci_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finanzauto_ci -d finanzauto_ci"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+  api:
+    build:
+      context: .
+      dockerfile: Finanzauto/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__Finanzauto: ${CI_DATABASE_CONNECTION:-unused}
+      Database__ApplyMigrations: "true"
+      Jwt__SigningKey: ${CI_JWT_SIGNING_KEY}
+      Jwt__Issuer: Finanzauto.Api
+      Jwt__Audience: Finanzauto.Client
+      BootstrapAdmin__Email: ${CI_BOOTSTRAP_ADMIN_EMAIL}
+      BootstrapAdmin__Password: ${CI_BOOTSTRAP_ADMIN_PASSWORD}
+    ports:
+      - "127.0.0.1::8080"
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  ci_data:
