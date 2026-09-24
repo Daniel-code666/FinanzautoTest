@@ -1,3 +1,4 @@
+using Finanzauto.Application.Identity;
 using Finanzauto.Domain.Entities;
 using Finanzauto.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,7 @@ public class CustomerMigrationTests(PostgresFixture postgres)
             await using var db = new FinanzautoDbContext(new DbContextOptionsBuilder<FinanzautoDbContext>().UseNpgsql(connectionString).Options);
             await db.GetService<IMigrator>().MigrateAsync("20260923222434_AuditDatesWithoutSecurityStamp");
             var employee = new Employee { FirstName = "Migration", LastName = "Test", Email = "migration@example.test", PasswordHash = "unused", RoleId = 1 };
+            EmailNormalizer.SetEmail(employee, employee.Email);
             db.Employees.Add(employee);
             await db.SaveChangesAsync();
             await db.Database.ExecuteSqlRawAsync("""

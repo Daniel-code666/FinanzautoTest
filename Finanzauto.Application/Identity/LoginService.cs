@@ -4,7 +4,7 @@ public sealed class LoginService(IIdentityStore store, IPasswordService password
 {
     public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken ct)
     {
-        var user = await store.FindByEmailAsync(request.Email.Trim().ToUpperInvariant(), ct);
+        var user = await store.FindByEmailAsync(EmailNormalizer.Normalize(request.Email), ct);
         if (user is null || !passwords.Verify(user, request.Password) || !user.Active || !user.Role.Active)
         {
             throw new IdentityException(401, "Credenciales inválidas.");

@@ -18,11 +18,15 @@ Estas consultas no bloquean las referencias: otra operación puede desactivarlas
 
 ## Eliminación lógica
 
-`FinanzautoDbContext` prepara los cambios tanto en `SaveChanges` como en `SaveChangesAsync`. Primero identifica pedidos eliminados o desactivados, carga sus detalles activos aunque no estuvieran cargados y los desactiva. Después convierte las eliminaciones de entidades en actualizaciones de `Active = false` y normaliza los correos de empleados.
+`EntityStatus.SetActive<T>(entity, active)`, en la capa de aplicación, asigna el estado de cualquier entidad que herede de `Entity`. Los servicios y repositorios usan el mismo método tanto para inactivar como para reactivar. La entidad debe estar siendo rastreada por EF al guardar. `SaveChanges` y `SaveChangesAsync` no están sobrescritos y únicamente persisten los cambios.
 
-Los filtros globales ocultan los registros inactivos en las consultas habituales. `IgnoreQueryFilters` permite consultarlos cuando una operación lo necesita. La desactivación de detalles del pedido es explícita; no existe una cascada lógica general para todas las relaciones.
+Los filtros globales ocultan los registros inactivos en las consultas habituales. `IgnoreQueryFilters` permite consultarlos para reactivación. `OrderStore.DeactivateAsync` consulta el pedido y sus detalles activos, aplica `SetActive` a todos y guarda en una transacción. No ofrece reactivación de órdenes ni existe una cascada lógica general para todas las relaciones.
 
-Un `DELETE` ejecutado directamente en PostgreSQL no pasa por `SaveChanges`: usa las cascadas físicas definidas en las relaciones de la base de datos.
+`Remove` ya no se transforma en inactivación; produce un borrado físico al guardar. La aplicación usa `SetActive`. Los borrados físicos conservan las cascadas de PostgreSQL.
+
+## Normalización del correo
+
+`EmailNormalizer.SetEmail` asigna el correo sin espacios exteriores y su versión normalizada en mayúsculas. Se usa en registro, creación administrativa y modificaciones de usuario o perfil. `EmailNormalizer.Normalize` prepara búsquedas de login, recuperación de contraseña, validación de duplicados e inicialización del administrador. Guardar directamente con el contexto ya no normaliza correos automáticamente.
 
 ## Fechas de auditoría
 

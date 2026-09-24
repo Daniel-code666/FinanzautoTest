@@ -116,8 +116,9 @@ sin activarlas simultáneamente al arrancar múltiples instancias.
 
 - Category, Supplier, Product, Customer, Employee, Shipper, Order, OrderDetail y Role.
 - Employee es la identidad de acceso: Email, NormalizedEmail, PasswordHash y RoleId.
-  El índice único de NormalizedEmail incluye empleados inactivos. EF normaliza el
-  correo al guardar. Los roles se crean con migraciones y el administrador se
+  El índice único de NormalizedEmail incluye empleados inactivos. EmailNormalizer
+  normaliza el correo en los servicios de aplicación al crear o editar usuarios.
+  Los roles se crean con migraciones y el administrador se
   inicializa opcionalmente con las variables BootstrapAdmin.
 - Category y Supplier son obligatorios en Product; Customer y Employee en Order.
   ShipVia y ReportsTo son opcionales. ReportsTo referencia al supervisor.
@@ -133,10 +134,12 @@ sin activarlas simultáneamente al arrancar múltiples instancias.
 ## Eliminación
 
 Todas las entidades incluyen Active con valor inicial true y filtro global de EF.
-`Remove` + `SaveChanges` se convierte en actualización de Active, sin DELETE.
-Al desactivar un pedido también se desactivan sus detalles dentro del mismo guardado.
-Las cascadas de EF se difieren para evitar que desactivar un empleado, por ejemplo,
-desactive sus pedidos. La reactivación no reactiva dependientes automáticamente.
+`EntityStatus.SetActive(entity, active)` es el mecanismo compartido para activar
+e inactivar entidades. Los repositorios y servicios lo llaman después de validar
+la operación y guardan con los métodos normales de EF, sin sobrescribir SaveChanges.
+OrderStore inactiva el pedido y sus detalles con el mismo mecanismo dentro de una
+transacción. No ofrece reactivación de órdenes. Reactivar usuarios o roles no
+reactiva dependientes automáticamente.
 
 Todas las claves foráneas usan ON DELETE CASCADE para borrados físicos directos
 desde DBeaver: la cascada va del principal hacia sus dependientes, nunca a la inversa.
@@ -146,12 +149,12 @@ Eliminar una categoría físicamente puede eliminar detalles de pedidos existent
 Los filtros globales se pueden omitir explícitamente con IgnoreQueryFilters para
 operaciones internas que necesiten históricos. Al consultar históricos con relaciones
 obligatorias también se deben considerar los filtros del principal.
-ExecuteDelete y SQL directo omiten SaveChanges; no deben usarse para eliminaciones
-habituales de la aplicación.
+Remove, ExecuteDelete y DELETE SQL eliminan físicamente: no deben usarse para
+las inactivaciones habituales de la aplicación.
 
 La API impide desactivar categorías con productos activos y solo acepta categorías
-y proveedores activos al crear/editar/generar productos. Las escrituras bloquean
-las referencias durante su transacción para coordinarse con la desactivación.
+y proveedores activos al crear/editar/generar productos. Las validaciones usan
+consultas normales; se acepta una posible desactivación concurrente posterior.
 Los proveedores y clientes tienen CRUD e inserción masiva. Un proveedor con productos
 activos no se puede desactivar, ni un cliente con pedidos activos.
 El proveedor inicial tiene identificador 1.

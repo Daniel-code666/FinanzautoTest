@@ -1,3 +1,4 @@
+using Finanzauto.Application.Common;
 using Finanzauto.Application.Catalog;
 using Finanzauto.Application.Common.Exceptions;
 using Finanzauto.Application.Partners;
@@ -143,7 +144,7 @@ public sealed class PartnerStore(FinanzautoDbContext db) : IPartnerStore
         if (await db.Products.AnyAsync(x => x.SupplierId == id, ct))
             throw new ApiException(409, "Reasigna o desactiva los productos activos antes de eliminar el proveedor.");
 
-        db.Suppliers.Remove(entity);
+        EntityStatus.SetActive(entity, false);
 
         await SaveAsync(ct);
     }
@@ -155,7 +156,7 @@ public sealed class PartnerStore(FinanzautoDbContext db) : IPartnerStore
         if (await db.Orders.AnyAsync(x => x.CustomerId == id, ct))
             throw new ApiException(409, "El cliente tiene pedidos activos.");
 
-        db.Customers.Remove(entity);
+        EntityStatus.SetActive(entity, false);
 
         await SaveAsync(ct);
     }

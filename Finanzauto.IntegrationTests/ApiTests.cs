@@ -11,6 +11,54 @@ namespace Finanzauto.IntegrationTests;
 [Collection("PostgreSQL")]
 public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
 {
+    [Theory]
+    [InlineData("Register")]
+    [InlineData("CreateUser")]
+    [InlineData("UpdateUser")]
+    [InlineData("Profile")]
+    public async Task Email_is_normalized_and_login_and_duplicates_use_the_same_value(string operation)
+    {
+        var email = "MixedCase" + Guid.NewGuid().ToString("N") + "@Example.Test";
+        int userId;
+        if (operation == "Register" || operation == "CreateUser")
+        {
+            var path = operation == "Register" ? "/UserAdministration/Register" : "/UserAdministration/Users";
+            var response = operation == "Register"
+                ? await Anonymous.PostAsJsonAsync(path,
+                    new { firstName = "Email", lastName = "Test", email, password = Factory.Password })
+                : await Admin.PostAsJsonAsync(path,
+                    new { firstName = "Email", lastName = "Test", email, password = Factory.Password, roleId = 2 });
+            using (response)
+            {
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                userId = (await response.Content.ReadFromJsonAsync<UserResponse>())!.Id;
+            }
+        }
+        else
+        {
+            var (client, user) = await Register();
+            using (client)
+            {
+                userId = user.Id;
+                using var response = operation == "Profile"
+                    ? await client.PutAsJsonAsync("/Profile", new { firstName = "Email", lastName = "Test", email })
+                    : await Admin.PutAsJsonAsync($"/UserAdministration/Users/{userId}",
+                        new { firstName = "Email", lastName = "Test", email, roleId = 2 });
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                await Error(await Anonymous.PostAsJsonAsync("/Login",
+                    new { email = user.Email, password = Factory.Password }), HttpStatusCode.Unauthorized);
+            }
+        }
+        await using var db = Db();
+        var saved = await db.Employees.SingleAsync(e => e.EmployeeId == userId);
+        Assert.Equal(email, saved.Email);
+        Assert.Equal(email.ToUpperInvariant(), saved.NormalizedEmail);
+        using var login = await Login(email.ToLowerInvariant(), Factory.Password);
+        await Error(await Anonymous.PostAsJsonAsync("/UserAdministration/Register",
+            new { firstName = "Duplicate", lastName = "Email", email = email.ToLowerInvariant(), password = Factory.Password }),
+            HttpStatusCode.Conflict);
+    }
+
     private static async Task<T> ReadResponse<T>(HttpResponseMessage response, HttpStatusCode expected = HttpStatusCode.Created)
     {
         using (response)

@@ -14,14 +14,14 @@ public sealed class ProfileService(IIdentityStore store, IPasswordService passwo
     {
         var user = await RequireUserAsync(userId, ct);
         var email = request.Email.Trim();
-        if (await store.EmailExistsAsync(email.ToUpperInvariant(), userId, ct))
+        if (await store.EmailExistsAsync(EmailNormalizer.Normalize(email), userId, ct))
         {
             throw new IdentityException(409, "El correo ya está registrado.");
         }
 
         user.FirstName = request.FirstName.Trim();
         user.LastName = request.LastName.Trim();
-        user.Email = email;
+        EmailNormalizer.SetEmail(user, email);
         user.BirthDate = request.BirthDate;
         user.Address = request.Address?.Trim();
         user.City = request.City?.Trim();

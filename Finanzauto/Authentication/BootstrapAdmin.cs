@@ -15,7 +15,7 @@ public static class BootstrapAdmin
 
         await using var scope = services.CreateAsyncScope();
         var store = scope.ServiceProvider.GetRequiredService<IIdentityStore>();
-        var existing = await store.FindByEmailAsync(email.Trim().ToUpperInvariant(), CancellationToken.None);
+        var existing = await store.FindByEmailAsync(EmailNormalizer.Normalize(email), CancellationToken.None);
         if (existing is not null)
         {
             if (existing.RoleId != UserAdministrationService.AdminRoleId)

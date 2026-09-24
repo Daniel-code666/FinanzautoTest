@@ -1,3 +1,4 @@
+using Finanzauto.Application.Common;
 using Finanzauto.Domain.Entities;
 
 namespace Finanzauto.Application.Identity;
@@ -24,10 +25,10 @@ public sealed class UserAdministrationService(IIdentityStore store, IPasswordSer
         {
             FirstName = request.FirstName.Trim(),
             LastName = request.LastName.Trim(),
-            Email = request.Email.Trim(),
             RoleId = role.RoleId,
             Role = role
         };
+        EmailNormalizer.SetEmail(user, request.Email);
         user.PasswordHash = passwords.Hash(user, request.Password);
         store.AddUser(user);
         await store.SaveAsync(ct);
@@ -57,7 +58,7 @@ public sealed class UserAdministrationService(IIdentityStore store, IPasswordSer
         var role = await RequireActiveRoleAsync(request.RoleId, ct);
         user.FirstName = request.FirstName.Trim();
         user.LastName = request.LastName.Trim();
-        user.Email = request.Email.Trim();
+        EmailNormalizer.SetEmail(user, request.Email);
         user.RoleId = role.RoleId;
         user.Role = role;
         await store.SaveAsync(ct);
@@ -83,7 +84,7 @@ public sealed class UserAdministrationService(IIdentityStore store, IPasswordSer
             throw new IdentityException(409, "El rol está inactivo.");
         }
 
-        user.Active = active;
+        EntityStatus.SetActive(user, active);
         await store.SaveAsync(ct);
     }
 
@@ -96,7 +97,7 @@ public sealed class UserAdministrationService(IIdentityStore store, IPasswordSer
         }
         else
         {
-            var existingUser = await store.FindByEmailAsync(request.Email.Trim().ToUpperInvariant(), ct);
+            var existingUser = await store.FindByEmailAsync(EmailNormalizer.Normalize(request.Email), ct);
             if (existingUser == null)
             {
                 throw new IdentityException(404, "Usuario no encontrado.");
@@ -159,7 +160,7 @@ public sealed class UserAdministrationService(IIdentityStore store, IPasswordSer
             throw new IdentityException(409, "Los roles base Admin y User no se pueden desactivar.");
         }
 
-        role.Active = active;
+        EntityStatus.SetActive(role, active);
         await store.SaveAsync(ct);
     }
 
@@ -196,7 +197,7 @@ public sealed class UserAdministrationService(IIdentityStore store, IPasswordSer
 
     private async Task CheckEmailAsync(string email, int? exceptId, CancellationToken ct)
     {
-        if (await store.EmailExistsAsync(email.Trim().ToUpperInvariant(), exceptId, ct))
+        if (await store.EmailExistsAsync(EmailNormalizer.Normalize(email), exceptId, ct))
         {
             throw new IdentityException(409, "El correo ya está registrado.");
         }

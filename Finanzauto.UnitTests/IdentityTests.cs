@@ -72,6 +72,8 @@ public class IdentityTests
         Assert.NotNull(saved);
         Assert.Equal("hashed", saved.PasswordHash);
         Assert.Equal("Ana", saved.FirstName);
+        Assert.Equal("user@example.test", saved.Email);
+        Assert.Equal("USER@EXAMPLE.TEST", saved.NormalizedEmail);
         store.Verify(s => s.EmailExistsAsync("USER@EXAMPLE.TEST", null, default), Times.Once);
         store.Verify(s => s.SaveAsync(default), Times.Once);
     }
@@ -174,4 +176,3 @@ public class IdentityTests
         Assert.Equal("original-hash", user.PasswordHash);
     }
 }
-

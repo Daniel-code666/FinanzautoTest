@@ -11,31 +11,19 @@ public sealed class ProductsController(IProductService products) : ControllerBas
 {
     [HttpGet]
     public async Task<ActionResult<CatalogPage<ProductResponse>>> List([FromQuery] ProductQuery query, CancellationToken ct)
-    {
-        var result = await products.ListAsync(query, ct);
-        return Ok(result);
-    }
+        => Ok(await products.ListAsync(query, ct));
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ProductDetailResponse>> Get(int id, CancellationToken ct)
-    {
-        var result = await products.GetAsync(id, ct);
-        return Ok(result);
-    }
+        => Ok(await products.GetAsync(id, ct));
 
     [HttpPost]
     public async Task<ActionResult<ProductDetailResponse>> Create(ProductRequest request, CancellationToken ct)
-    {
-        var product = await products.CreateAsync(request, ct);
-        return CreatedAtAction(nameof(Get), new { id = product.Product.Id }, product);
-    }
+        => Ok(await products.CreateAsync(request, ct));
 
     [HttpPut("{id:int}")]
     public async Task<ActionResult<ProductDetailResponse>> Update(int id, ProductRequest request, CancellationToken ct)
-    {
-        var result = await products.UpdateAsync(id, request, ct);
-        return Ok(result);
-    }
+        => Ok(await products.UpdateAsync(id, request, ct));
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)

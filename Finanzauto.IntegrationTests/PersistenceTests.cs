@@ -1,3 +1,5 @@
+using Finanzauto.Infrastructure.Orders;
+using Finanzauto.Application.Common;
 using System.Net;
 using System.Net.Http.Json;
 using Finanzauto.Application.Catalog;
@@ -12,11 +14,42 @@ namespace Finanzauto.IntegrationTests;
 public sealed class PersistenceTests(PostgresFixture postgres) : ApiTest(postgres)
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public async Task Deactivating_order_keeps_rows_and_deactivates_unloaded_details(bool useAsync, bool remove)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Shared_state_change_persists_without_deleting_rows(bool useAsync)
+    {
+        await using var db = Db();
+        var category = new Category { CategoryName = "State" };
+        var supplier = new Supplier { CompanyName = "State" };
+        var customer = new Customer { CompanyName = "State" };
+        var product = new Product { ProductName = "State", Category = category, Supplier = supplier };
+        db.Products.Add(product);
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        foreach (var active in new[] { false, true })
+        {
+            EntityStatus.SetActive(category, active);
+            EntityStatus.SetActive(supplier, active);
+            EntityStatus.SetActive(customer, active);
+            EntityStatus.SetActive(product, active);
+            if (useAsync) await db.SaveChangesAsync();
+            else db.SaveChanges();
+
+            await using var verification = Db();
+            Assert.Equal(active, (await verification.Categories.IgnoreQueryFilters().SingleAsync(x => x.CategoryId == category.CategoryId)).Active);
+            Assert.Equal(active, (await verification.Suppliers.IgnoreQueryFilters().SingleAsync(x => x.SupplierId == supplier.SupplierId)).Active);
+            Assert.Equal(active, (await verification.Customers.IgnoreQueryFilters().SingleAsync(x => x.CustomerId == customer.CustomerId)).Active);
+            var savedProduct = await verification.Products.IgnoreQueryFilters().SingleAsync(x => x.ProductId == product.ProductId);
+            Assert.Equal(active, savedProduct.Active);
+            Assert.Equal(product.CreationDate, savedProduct.CreationDate);
+            Assert.NotNull(savedProduct.UpdatedDate);
+            Assert.Equal(active, await verification.Products.AnyAsync(x => x.ProductId == product.ProductId));
+        }
+    }
+
+    [Fact]
+    public async Task Deactivating_order_keeps_rows_and_deactivates_unloaded_details()
     {
         int orderId;
         int customerId;
@@ -52,23 +85,7 @@ public sealed class PersistenceTests(PostgresFixture postgres) : ApiTest(postgre
         {
             var order = await db.Orders.SingleAsync(o => o.OrderId == orderId);
             Assert.Empty(db.ChangeTracker.Entries<OrderDetail>());
-            if (remove)
-            {
-                db.Orders.Remove(order);
-            }
-            else
-            {
-                order.Active = false;
-            }
-
-            if (useAsync)
-            {
-                await db.SaveChangesAsync();
-            }
-            else
-            {
-                db.SaveChanges();
-            }
+            await new OrderStore(db).DeactivateAsync(orderId, default);
         }
 
         await using var verification = Db();

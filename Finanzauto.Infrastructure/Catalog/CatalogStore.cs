@@ -1,3 +1,4 @@
+using Finanzauto.Application.Common;
 using Finanzauto.Application.Catalog;
 using Finanzauto.Application.Common.Exceptions;
 using Finanzauto.Domain.Entities;
@@ -50,7 +51,7 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var term = query.Search.Trim().ToUpperInvariant();
-            products = products.Where(x => EF.Property<string>(x, "SearchName").Contains(term));
+            products = products.Where(x => x.ProductName.Contains(term));
         }
         var total = await products.CountAsync(ct);
         IOrderedQueryable<Product> ordered;
@@ -89,9 +90,7 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
         }
 
         var offset = (query.Page - 1) * query.PageSize;
-        var items = await ordered
-            .Skip(offset)
-            .Take(query.PageSize)
+        var items = await ordered.Skip(offset).Take(query.PageSize)
             .Select(x => new ProductResponse
             {
                 Id = x.ProductId,
@@ -108,6 +107,7 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
                 Discontinued = x.Discontinued
             })
             .ToListAsync(ct);
+
         return new CatalogPage<ProductResponse>
         {
             Items = items,
@@ -144,7 +144,7 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
                     Picture = x.Category.Picture,
                     PictureContentType = x.Category.PictureContentType
                 }
-            }).SingleOrDefaultAsync(ct);
+            }).FirstOrDefaultAsync(ct);
 
     public async Task<int> SaveProductAsync(int? id, Product product, CancellationToken ct)
     {
@@ -176,9 +176,8 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
 
     public async Task DeactivateProductAsync(int id, CancellationToken ct)
     {
-        var product = await db.Products.SingleOrDefaultAsync(x => x.ProductId == id, ct)
-            ?? throw new ApiException(404, "Producto no encontrado.");
-        db.Products.Remove(product);
+        var product = await db.Products.SingleOrDefaultAsync(x => x.ProductId == id, ct) ?? throw new ApiException(404, "Producto no encontrado.");
+        EntityStatus.SetActive(product, false);
         await SaveAsync(ct);
     }
 
@@ -257,7 +256,7 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
         if (await db.Products.AnyAsync(x => x.CategoryId == id, ct))
             throw new ApiException(409, "Reasigna o desactiva los productos activos antes de eliminar la categoría.");
 
-        db.Categories.Remove(category);
+        EntityStatus.SetActive(category, false);
         await SaveAsync(ct);
     }
 
