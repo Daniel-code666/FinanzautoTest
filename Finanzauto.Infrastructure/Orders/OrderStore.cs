@@ -26,7 +26,7 @@ public sealed class OrderStore(FinanzautoDbContext db) : IOrderStore
                 (x.ShipName != null && x.ShipName.ToUpper().Contains(term)) ||
                 (x.ShipCity != null && x.ShipCity.ToUpper().Contains(term)));
         }
-        
+
         var total = await rows.CountAsync(ct);
         var offset = (query.Page - 1) * query.PageSize;
         var items = await rows.OrderBy(x => x.OrderId).Skip(offset).Take(query.PageSize).Include(x => x.OrderDetails.Where(d => d.Active)).AsSplitQuery().ToListAsync(ct);
