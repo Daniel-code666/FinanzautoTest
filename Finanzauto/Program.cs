@@ -8,6 +8,7 @@ using Finanzauto.Documentation;
 using Finanzauto.Application.Catalog;
 using Finanzauto.Application.Partners;
 using Finanzauto.Application.Shippers;
+using Finanzauto.Application.Orders;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 
@@ -38,6 +39,7 @@ builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IPartnerService, PartnerService>();
 builder.Services.AddScoped<IShipperService, ShipperService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddSingleton<IRandomProductGenerator, RandomProductGenerator>();
 builder.Services.AddScoped<IProductGenerationService, ProductGenerationService>();

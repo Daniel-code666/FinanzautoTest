@@ -123,7 +123,8 @@ sin activarlas simultáneamente al arrancar múltiples instancias.
 - Category y Supplier son obligatorios en Product; Customer y Employee en Order.
   ShipVia y ReportsTo son opcionales. ReportsTo referencia al supervisor.
 - CustomerId y las demás claves simples son enteros autoincrementales.
-  OrderDetail usa la clave compuesta OrderId + ProductId.
+  OrderDetail usa OrderDetailId autoincremental y un índice único sobre
+  OrderId + ProductId únicamente para filas activas.
 - Dinero: decimal(18,2). Discount: fracción de 0 a 1. Precios, existencias y flete
   no negativos; cantidades de detalle positivas.
 - Fechas de pedidos: timestamp with time zone, usando UTC desde la aplicación.
@@ -554,6 +555,70 @@ La inactivación utiliza EntityStatus.SetActive y devuelve 409 si existe una ord
 activa cuyo ShipVia referencia la transportadora. Las órdenes inactivas no la
 bloquean y conservan su relación histórica. Las consultas por ID de registros
 inactivos o inexistentes devuelven 404. No se requiere una migración adicional.
+
+## Órdenes: cabecera y detalles
+
+Todos los endpoints requieren JWT y permiten cualquier rol autenticado.
+Solo se consultan y modifican órdenes y detalles activos; no hay reactivación.
+
+| Método | Ruta | Operación |
+|---|---|---|
+| POST | /Orders | Crear cabecera con detalles; devuelve 200 |
+| GET | /Orders | Listar cabeceras paginadas con sus detalles activos |
+| GET | /Orders/{id} | Consultar cabecera y detalles activos |
+| PUT | /Orders/{id} | Actualizar cabecera, modificar detalles y agregar nuevos; devuelve 200 |
+| DELETE | /Orders/{id} | Inactivar orden y detalles activos; devuelve 204 |
+| DELETE | /Orders/{orderId}/Details/{detailId} | Inactivar solo un detalle; devuelve 204 |
+
+Ejemplo de creación (sustituir los IDs por registros activos):
+
+```json
+{
+  "customerId": 1,
+  "shipVia": 1,
+  "orderDate": "2026-09-24T12:00:00Z",
+  "freight": 5,
+  "shipName": "Oficina principal",
+  "shipCity": "Bogota",
+  "details": [
+    { "productId": 1, "quantity": 2, "discount": 0.1 }
+  ]
+}
+```
+
+EmployeeId se asigna desde el JWT al crear y se conserva al actualizar. CustomerId,
+OrderDate y un arreglo de 1-1000 detalles son obligatorios. ShipVia es opcional.
+Las fechas se envían en UTC; RequiredDate y ShippedDate no pueden preceder OrderDate.
+Freight admite hasta dos decimales, no negativos. Quantity debe ser positiva;
+Discount es una fracción entre 0 y 1, con hasta cuatro decimales.
+
+PUT reemplaza los campos de la cabecera. Cada elemento de details con OrderDetailId
+modifica ese detalle activo de la orden; sin OrderDetailId agrega uno nuevo.
+Los detalles omitidos permanecen intactos. ProductId no se cambia en un detalle
+existente: se inactiva el detalle y se agrega uno nuevo. Los IDs de detalles
+inexistentes, inactivos o pertenecientes a otra orden devuelven 404.
+
+El índice único parcial impide repetir productos activos en una orden (409).
+Un producto previamente inactivado puede agregarse como un detalle con un ID nuevo.
+Inactivar el último detalle deja la cabecera activa, con un arreglo vacío al consultar.
+Inactivar la orden inactiva todos sus detalles en una transacción. Las escrituras
+de cabecera y detalles se guardan de forma atómica, sin eliminación física.
+
+El precio se toma del producto al agregarlo y se conserva en las actualizaciones.
+No se modifica inventario. Cada total de línea se calcula como cantidad × precio ×
+(1 − descuento), redondeado a dos decimales alejándose de cero en los puntos medios;
+el total de la orden suma esas líneas y Freight. Las respuestas incluyen IDs de
+referencias y fechas de auditoría, sin exponer entidades relacionadas inactivas.
+
+GET /Orders admite page, pageSize (1-100), search (ID, ShipName o ShipCity),
+customerId, employeeId, shipVia, fromDate y toDate (UTC, límites inclusivos).
+La paginación corresponde a las cabeceras y cada una incluye sus detalles activos.
+Las referencias se validan mediante consultas normales, sin bloqueos explícitos.
+
+La migración OrderDetailIdentity asigna IDs a los detalles existentes, conserva
+sus datos y relaciones, y sustituye la PK compuesta por el índice único parcial.
+Revertirla solo es posible si no existen pares OrderId/ProductId repetidos,
+incluyendo inactivos; de lo contrario la reversión falla sin eliminar esos datos.
 
 ## Mi perfil y matriz de acceso
 

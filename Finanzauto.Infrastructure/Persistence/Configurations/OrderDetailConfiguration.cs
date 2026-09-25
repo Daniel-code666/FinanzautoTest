@@ -11,7 +11,9 @@ public sealed class OrderDetailConfiguration : IEntityTypeConfiguration<OrderDet
         b.ToTable("OrderDetails");
         b.Property(x => x.Active).HasDefaultValue(true);
         b.HasQueryFilter(x => x.Active);
-        b.HasKey(x => new { x.OrderId, x.ProductId });
+        b.HasKey(x => x.OrderDetailId);
+        b.Property(x => x.OrderDetailId).UseIdentityByDefaultColumn();
+        b.HasIndex(x => new { x.OrderId, x.ProductId }).IsUnique().HasFilter("\"Active\" = true");
         b.Property(x => x.UnitPrice).HasPrecision(18, 2);
         b.Property(x => x.Discount).HasPrecision(5, 4);
         b.HasOne(x => x.Order).WithMany(x => x.OrderDetails).HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
@@ -24,4 +26,3 @@ public sealed class OrderDetailConfiguration : IEntityTypeConfiguration<OrderDet
         });
     }
 }
-
