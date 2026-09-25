@@ -51,7 +51,8 @@ public sealed class CatalogStore(FinanzautoDbContext db) : ICatalogStore
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var term = query.Search.Trim().ToUpperInvariant();
-            products = products.Where(x => x.ProductName.Contains(term));
+            // SearchName contiene el nombre en mayúsculas y tiene un índice para búsqueda parcial.
+            products = products.Where(x => EF.Property<string>(x, "SearchName").Contains(term));
         }
         var total = await products.CountAsync(ct);
         IOrderedQueryable<Product> ordered;

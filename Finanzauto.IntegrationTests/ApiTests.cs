@@ -59,7 +59,7 @@ public sealed class ApiTests(PostgresFixture postgres) : ApiTest(postgres)
             HttpStatusCode.Conflict);
     }
 
-    private static async Task<T> ReadResponse<T>(HttpResponseMessage response, HttpStatusCode expected = HttpStatusCode.Created)
+    private static async Task<T> ReadResponse<T>(HttpResponseMessage response, HttpStatusCode expected = HttpStatusCode.OK)
     {
         using (response)
         {
